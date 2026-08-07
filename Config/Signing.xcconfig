@@ -1,0 +1,20 @@
+// ScreenBlock — the only file you need to edit to build this on your own device.
+//
+// Everything downstream (four bundle IDs, four entitlements files, and the
+// App Group identifier baked into each Info.plist) is derived from these two
+// values, so they can never drift out of sync.
+
+// 1. Your 10-character Apple Developer Team ID.
+//    Find it at https://developer.apple.com/account under Membership Details,
+//    or in Xcode: Settings -> Accounts -> your Apple ID -> Team.
+//    A free Apple ID works for on-device development.
+DEVELOPMENT_TEAM =
+
+// 2. Reverse-DNS prefix for the app. Extensions get .monitor / .shieldconfig /
+//    .shieldaction appended automatically. Must be unique to you.
+BUNDLE_ID_PREFIX = com.screenblock.app
+
+// 3. The App Group is the shared container the app and its three extensions use
+//    to agree on how many breaks are left. Apple requires the "group." prefix.
+//    Keep it in step with BUNDLE_ID_PREFIX.
+APP_GROUP_ID = group.$(BUNDLE_ID_PREFIX)
