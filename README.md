@@ -127,4 +127,22 @@ ShieldAction/             Block screen buttons
   not a security control.
 - Usage-based break timing means a break can outlive its wall clock if you never open the
   blocked apps — the reconcile pass cleans that up next time you open ScreenBlock.
-- No app icon artwork yet (`Assets.xcassets/AppIcon.appiconset` is an empty placeholder).
+- Only the standard icon is supplied. iOS 18+ derives its dark and tinted home-screen
+  variants automatically; hand-tuned ones aren't included.
+
+## The app icon
+
+The icon is generated, not drawn — `Tools/make-icon.swift` renders it with CoreGraphics:
+
+```bash
+swift Tools/make-icon.swift
+```
+
+That writes `ScreenBlock/Assets.xcassets/AppIcon.appiconset/AppIcon.png` (1024×1024) plus a
+throwaway 120px preview for checking that the mark still reads at home-screen size. Colours
+track `Theme.accent`, so the icon and the in-app UI can't drift apart.
+
+Two constraints are baked into the renderer and worth keeping if you edit it: the bitmap
+uses `noneSkipLast` so the PNG carries **no alpha channel** (App Store Connect rejects app
+icons with transparency), and no corner rounding is baked in (iOS applies its own mask —
+a pre-rounded icon shows a dark fringe).
