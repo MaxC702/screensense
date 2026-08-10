@@ -1,7 +1,8 @@
 # ScreenBlock
 
 An iOS app blocker with **no limit on how many apps you block** and a break budget you set
-yourself: **1–5 breaks per day, 1–30 minutes each** (defaults: 3 breaks of 5 minutes).
+yourself: **1–5 breaks per day, 1–30 minutes each, with a 5-minute to 1-hour enforced wait
+between them** (defaults: 3 breaks of 5 minutes, 15 minutes apart).
 Built on Apple's Screen Time APIs
 (FamilyControls / ManagedSettings / DeviceActivity), so the blocking is enforced by iOS
 itself rather than by a VPN profile or a DNS trick.
@@ -40,6 +41,20 @@ two triggers instead:
    and foreground, closing a break whose wall clock expired while nothing was watching.
 
 Ending a break early does **not** refund it. That's the point of a budget.
+
+### The cooldown
+
+When a break ends, a wait starts before another can begin — otherwise the whole day's
+allowance could be spent in one continuous sitting, which is the failure mode the budget
+exists to prevent.
+
+Unlike breaks, the cooldown is **wall clock**, deliberately. A usage-based cooldown could
+be run down from inside a blocked app, which would defeat it entirely.
+
+The cooldown is anchored to when the break *actually* ended, not to when ScreenBlock
+noticed. Ending early makes that the moment you tapped; a break that expired while the app
+was closed is anchored to its scheduled end (`min(scheduledEnd, now)`). Anchoring to "now"
+unconditionally would silently stretch the cooldown by however long the app stayed shut.
 
 ### Daily reset
 
@@ -96,7 +111,8 @@ need to re-sign every 7 days on a free account.
 2. **Toggle blocking on.** Blocked apps now show the ScreenBlock shield.
 3. **Set your budget** — the gear in the top right, or tap the "Each break lasts" row on
    the home screen. Breaks per day is a 1–5 segmented control; break length is a 1–30
-   minute slider. Changes save immediately and the block screen picks them up at once.
+   minute slider; the wait between breaks is a 5–60 minute slider. Changes save immediately
+   and the block screen picks them up at once.
 4. **Need in?** Either open ScreenBlock and hit **Start break**, or tap **Take a break**
    directly on the block screen — that spends one break and drops you straight into the
    app without ever leaving it.

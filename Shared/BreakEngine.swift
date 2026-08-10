@@ -15,6 +15,7 @@ enum BreakEngine {
         case noAppsSelected
         case noBreaksLeft(limit: Int)
         case alreadyOnBreak
+        case coolingDown(secondsRemaining: TimeInterval)
         case schedulingFailed(String)
 
         var errorDescription: String? {
@@ -25,6 +26,9 @@ enum BreakEngine {
                 return "You've used all \(limit) break\(limit == 1 ? "" : "s") today. They reset at midnight."
             case .alreadyOnBreak:
                 return "A break is already running."
+            case .coolingDown(let seconds):
+                let minutes = BreakState.minutesRoundedUp(from: seconds)
+                return "Cooling down. You can start another break in \(minutes) minute\(minutes == 1 ? "" : "s")."
             case .schedulingFailed(let reason):
                 return "Couldn't schedule the break: \(reason)"
             }
@@ -49,6 +53,9 @@ enum BreakEngine {
         let settings = BreakStore.loadSettings()
 
         guard !state.isOnBreak(now: now) else { throw BreakError.alreadyOnBreak }
+        guard !state.isCoolingDown(now: now) else {
+            throw BreakError.coolingDown(secondsRemaining: state.remainingCooldownSeconds(now: now))
+        }
         guard state.breaksRemaining(limit: settings.breaksPerDay) > 0 else {
             throw BreakError.noBreaksLeft(limit: settings.breaksPerDay)
         }
@@ -69,12 +76,32 @@ enum BreakEngine {
 
     // MARK: - End
 
-    /// Re-applies the shield and tears down monitoring. Idempotent, because it
-    /// can be called by the usage threshold and the interval backstop and the
-    /// app's foreground check — potentially all three for the same break.
-    static func endBreak() {
+    /// Re-applies the shield, starts the cooldown, and tears down monitoring.
+    ///
+    /// Idempotent, because it can be called by the usage threshold, the interval
+    /// backstop, and the app's foreground check — potentially all three for the
+    /// same break.
+    static func endBreak(now: Date = .now) {
         DeviceActivityCenter().stopMonitoring([.breakWindow])
-        let state = BreakStore.mutate { $0.breakEndsAt = nil }
+        let settings = BreakStore.loadSettings()
+
+        let state = BreakStore.mutate(now: now) { state in
+            // Only arm a cooldown if a break was actually running. Without this
+            // guard, the repeat calls described above would each push the
+            // cooldown further out and it would never expire.
+            guard let scheduledEnd = state.breakEndsAt else { return }
+
+            // Anchor the cooldown to when the break *actually* ended, not to the
+            // moment we noticed. Ending early makes `now` the real end; noticing
+            // late (a reconcile hours after the fact) makes `scheduledEnd` the
+            // real end. Using `now` unconditionally would silently extend the
+            // cooldown by however long the app stayed closed.
+            let actualEnd = min(scheduledEnd, now)
+            state.cooldownUntil = actualEnd
+                .addingTimeInterval(TimeInterval(settings.cooldownMinutes * 60))
+            state.breakEndsAt = nil
+        }
+
         guard state.blockingEnabled else { return }
         ShieldController.applyShield()
     }

@@ -9,13 +9,17 @@ import Foundation
 struct BreakSettings: Codable, Equatable {
     var breaksPerDay: Int
     var breakMinutes: Int
+    /// Enforced wait after a break ends before another may start.
+    var cooldownMinutes: Int
 
     init(
         breaksPerDay: Int = BreakRules.defaultBreaksPerDay,
-        breakMinutes: Int = BreakRules.defaultBreakMinutes
+        breakMinutes: Int = BreakRules.defaultBreakMinutes,
+        cooldownMinutes: Int = BreakRules.defaultCooldownMinutes
     ) {
         self.breaksPerDay = BreakRules.clampBreaksPerDay(breaksPerDay)
         self.breakMinutes = BreakRules.clampMinutes(breakMinutes)
+        self.cooldownMinutes = BreakRules.clampCooldownMinutes(cooldownMinutes)
     }
 
     /// Decoded field-by-field with `decodeIfPresent` so that adding a setting in
@@ -33,6 +37,13 @@ struct BreakSettings: Codable, Equatable {
         breakMinutes = BreakRules.clampMinutes(
             try container.decodeIfPresent(Int.self, forKey: .breakMinutes)
                 ?? BreakRules.defaultBreakMinutes
+        )
+        // Added after the first release of this struct. Settings saved before
+        // cooldowns existed simply fall back to the default here rather than
+        // failing to decode and wiping the whole configuration.
+        cooldownMinutes = BreakRules.clampCooldownMinutes(
+            try container.decodeIfPresent(Int.self, forKey: .cooldownMinutes)
+                ?? BreakRules.defaultCooldownMinutes
         )
     }
 }

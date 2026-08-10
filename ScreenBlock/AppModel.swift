@@ -36,11 +36,16 @@ final class AppModel: ObservableObject {
     var isAuthorized: Bool { authorizationStatus == .approved }
     var blockedCount: Int { selection.blockedItemCount }
     var isOnBreak: Bool { state.isOnBreak(now: now) }
+    var isCoolingDown: Bool { state.isCoolingDown(now: now) }
     var breaksRemaining: Int { state.breaksRemaining(limit: settings.breaksPerDay) }
+    var canStartBreak: Bool { breaksRemaining > 0 && !isCoolingDown && state.blockingEnabled }
 
     var countdownText: String {
-        let seconds = Int(state.remainingBreakSeconds(now: now).rounded(.up))
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+        BreakState.countdown(from: state.remainingBreakSeconds(now: now))
+    }
+
+    var cooldownText: String {
+        BreakState.countdown(from: state.remainingCooldownSeconds(now: now))
     }
 
     // MARK: - Authorization
@@ -71,8 +76,11 @@ final class AppModel: ObservableObject {
         updateTicker()
     }
 
+    /// Runs while either countdown is live — the break, or the cooldown that
+    /// follows it.
     private func updateTicker() {
-        guard state.isOnBreak(now: .now) else {
+        let needsTicking = state.isOnBreak(now: .now) || state.isCoolingDown(now: .now)
+        guard needsTicking else {
             ticker = nil
             return
         }
@@ -83,12 +91,18 @@ final class AppModel: ObservableObject {
             .sink { [weak self] date in
                 guard let self else { return }
                 self.now = date
+
                 // The in-app countdown hitting zero is a display concern; the
-                // authoritative re-block comes from the monitor extension. This
-                // just keeps the UI honest if the user is watching it.
-                if !self.state.isOnBreak(now: date) {
-                    self.ticker = nil
+                // authoritative re-block comes from the monitor extension.
+                // Reconciling here turns the finished break into a cooldown so
+                // the UI doesn't briefly offer a break it would then refuse.
+                if self.state.breakEndsAt != nil, !self.state.isOnBreak(now: date) {
                     self.refresh()
+                    return
+                }
+
+                if !self.state.isOnBreak(now: date), !self.state.isCoolingDown(now: date) {
+                    self.ticker = nil
                 }
             }
     }

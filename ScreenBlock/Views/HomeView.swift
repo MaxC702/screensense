@@ -176,38 +176,59 @@ struct HomeView: View {
             .buttonStyle(.plain)
 
             Divider().overlay(Color.white.opacity(0.08))
+            valueRow("Breaks per day", "\(model.settings.breaksPerDay)")
 
-            HStack(spacing: 6) {
-                Text("Breaks per day")
-                    .foregroundColor(Theme.muted)
-                Spacer()
-                Text("\(model.settings.breaksPerDay)")
-                    .font(.headline.monospacedDigit())
-            }
-            .padding(.vertical, 8)
+            Divider().overlay(Color.white.opacity(0.08))
+            valueRow("Wait between breaks", "\(model.settings.cooldownMinutes) min")
 
             Button {
                 model.startBreak()
             } label: {
-                Text(canStartBreak
-                     ? "Start \(model.settings.breakMinutes)-minute break"
-                     : "No breaks left today")
+                Text(startButtonTitle)
                     .font(.headline)
+                    .monospacedDigit()
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        canStartBreak ? Theme.accent : Color.white.opacity(0.1),
+                        model.canStartBreak ? Theme.accent : Color.white.opacity(0.1),
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                     )
-                    .foregroundColor(canStartBreak ? .white : Theme.muted)
+                    .foregroundColor(model.canStartBreak ? .white : Theme.muted)
             }
-            .disabled(!canStartBreak)
+            .disabled(!model.canStartBreak)
             .padding(.top, 8)
+
+            if model.isCoolingDown {
+                Text("Breaks are spaced out so you can't take them back to back.")
+                    .font(.caption)
+                    .foregroundColor(Theme.muted)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 6)
+            }
         }
     }
 
-    private var canStartBreak: Bool {
-        model.breaksRemaining > 0 && model.state.blockingEnabled
+    /// The button doubles as the cooldown readout — a disabled control with no
+    /// explanation is the thing that makes an app feel broken.
+    private var startButtonTitle: String {
+        if model.isCoolingDown {
+            return "Next break in \(model.cooldownText)"
+        }
+        if model.breaksRemaining == 0 {
+            return "No breaks left today"
+        }
+        return "Start \(model.settings.breakMinutes)-minute break"
+    }
+
+    private func valueRow(_ title: String, _ value: String) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .foregroundColor(Theme.muted)
+            Spacer()
+            Text(value)
+                .font(.headline.monospacedDigit())
+        }
+        .padding(.vertical, 8)
     }
 
     private var footnote: some View {

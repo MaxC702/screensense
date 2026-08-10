@@ -14,6 +14,7 @@ struct SettingsView: View {
             VStack(spacing: 18) {
                 breaksPerDayCard
                 breakLengthCard
+                cooldownCard
                 explainer
             }
             .padding(20)
@@ -97,10 +98,61 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Cooldown
+
+    private var cooldownCard: some View {
+        Card {
+            Label("Wait between breaks", systemImage: "hourglass")
+                .font(.headline)
+
+            Text("How long you have to wait after one break before the next can start.")
+                .font(.subheadline)
+                .foregroundColor(Theme.muted)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(model.settings.cooldownMinutes)")
+                    .font(.system(size: 44, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                Text("minutes")
+                    .font(.headline)
+                    .foregroundColor(Theme.muted)
+                Spacer()
+            }
+
+            Slider(
+                value: Binding(
+                    get: { Double(model.settings.cooldownMinutes) },
+                    set: { value in model.updateSettings { $0.cooldownMinutes = Int(value.rounded()) } }
+                ),
+                in: Double(BreakRules.minCooldownMinutes)...Double(BreakRules.maxCooldownMinutes),
+                step: 5
+            )
+            .tint(Theme.accent)
+
+            HStack {
+                Text("\(BreakRules.minCooldownMinutes) min")
+                Spacer()
+                Text("1 hour")
+            }
+            .font(.caption)
+            .foregroundColor(Theme.muted)
+
+            if model.isCoolingDown {
+                Label(
+                    "Cooling down now — \(model.cooldownText) left. Changes apply to the next one.",
+                    systemImage: "info.circle"
+                )
+                .font(.caption)
+                .foregroundColor(.orange)
+            }
+        }
+    }
+
     private var explainer: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("A break counts down while you're actually using the blocked apps, so time spent with your phone in your pocket doesn't burn it.")
-            Text("Breaks reset at midnight. Ending one early doesn't give it back.")
+            Text("The wait between breaks runs on the clock instead, so it can't be waited out inside a blocked app.")
+            Text("Breaks reset at midnight. Ending one early doesn't give it back, and it still starts the wait.")
         }
         .font(.caption)
         .foregroundColor(Theme.muted)

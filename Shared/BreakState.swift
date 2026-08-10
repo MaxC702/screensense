@@ -13,6 +13,13 @@ enum BreakRules {
     static let minuteRange = minMinutes...maxMinutes
     static let breaksRange = minBreaksPerDay...maxBreaksPerDay
 
+    /// Enforced wait between the end of one break and the start of the next,
+    /// so the daily allowance can't be spent in one continuous sitting.
+    static let minCooldownMinutes = 5
+    static let maxCooldownMinutes = 60
+    static let defaultCooldownMinutes = 15
+    static let cooldownRange = minCooldownMinutes...maxCooldownMinutes
+
     /// iOS rejects a `DeviceActivitySchedule` whose interval is shorter than
     /// 15 minutes, so a 1-minute break cannot be expressed as a schedule.
     /// Short breaks are enforced by a usage *event threshold* instead, and the
@@ -26,6 +33,10 @@ enum BreakRules {
     static func clampBreaksPerDay(_ count: Int) -> Int {
         min(max(count, minBreaksPerDay), maxBreaksPerDay)
     }
+
+    static func clampCooldownMinutes(_ minutes: Int) -> Int {
+        min(max(minutes, minCooldownMinutes), maxCooldownMinutes)
+    }
 }
 
 /// Everything the four processes need to agree on, small enough to round-trip
@@ -35,6 +46,11 @@ struct BreakState: Codable, Equatable {
     var breaksUsed: Int
     /// Wall-clock deadline for the running break; `nil` when no break is active.
     var breakEndsAt: Date?
+    /// Wall clock instant before which no new break may start. Set when a break
+    /// ends. Optional on purpose: Swift's synthesized decoder uses
+    /// `decodeIfPresent` for optionals, so payloads saved before cooldowns
+    /// existed still decode instead of silently resetting the user's state.
+    var cooldownUntil: Date?
     /// User-facing on/off switch. Blocking is never applied unless this is true.
     var blockingEnabled: Bool
 
@@ -42,11 +58,13 @@ struct BreakState: Codable, Equatable {
         dayKey: String = BreakState.dayKey(for: .now),
         breaksUsed: Int = 0,
         breakEndsAt: Date? = nil,
+        cooldownUntil: Date? = nil,
         blockingEnabled: Bool = false
     ) {
         self.dayKey = dayKey
         self.breaksUsed = breaksUsed
         self.breakEndsAt = breakEndsAt
+        self.cooldownUntil = cooldownUntil
         self.blockingEnabled = blockingEnabled
     }
 
@@ -69,6 +87,30 @@ struct BreakState: Codable, Equatable {
     func remainingBreakSeconds(now: Date = .now) -> TimeInterval {
         guard let breakEndsAt else { return 0 }
         return max(0, breakEndsAt.timeIntervalSince(now))
+    }
+
+    /// Cooldowns are wall clock, deliberately unlike breaks. A usage-based
+    /// cooldown could be waited out inside a blocked app, which defeats it.
+    func isCoolingDown(now: Date = .now) -> Bool {
+        guard let cooldownUntil else { return false }
+        return cooldownUntil > now
+    }
+
+    func remainingCooldownSeconds(now: Date = .now) -> TimeInterval {
+        guard let cooldownUntil else { return 0 }
+        return max(0, cooldownUntil.timeIntervalSince(now))
+    }
+
+    /// `mm:ss` for live countdowns.
+    static func countdown(from seconds: TimeInterval) -> String {
+        let total = Int(seconds.rounded(.up))
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    /// Coarser phrasing for one-shot messages, where a ticking clock would be
+    /// stale by the time it's read.
+    static func minutesRoundedUp(from seconds: TimeInterval) -> Int {
+        max(1, Int((seconds / 60).rounded(.up)))
     }
 
     // MARK: - Day rollover

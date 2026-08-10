@@ -39,6 +39,11 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         [8, 11, 18].contains(minutes) ? "an" : "a"
     }
 
+    private static func symbol(coolingDown: Bool, hasBreaks: Bool) -> String {
+        if coolingDown { return "hourglass" }
+        return hasBreaks ? "hand.raised.fill" : "moon.zzz.fill"
+    }
+
     private static func makeConfiguration() -> ShieldConfiguration {
         // Read fresh: the count may have changed since the last time this
         // extension was spawned.
@@ -47,19 +52,32 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         let remaining = state.breaksRemaining(limit: settings.breaksPerDay)
         let minutes = BreakRules.clampMinutes(settings.breakMinutes)
 
+        // A break can be unavailable for two different reasons, and saying which
+        // one matters: "come back in 12 minutes" is actionable, "no breaks left"
+        // is not. Cooling down is checked first because it's the temporary one.
+        let coolingDown = state.isCoolingDown()
         let hasBreaks = remaining > 0
-        let subtitle = hasBreaks
-            ? "\(remaining) of \(settings.breaksPerDay) breaks left today."
-            : "No breaks left. They come back at midnight."
+        let canStart = hasBreaks && !coolingDown
 
-        let primaryLabel = hasBreaks
-            ? "Take \(Self.article(for: minutes)) \(minutes)-minute break"
-            : "Blocked until tomorrow"
+        let subtitle: String
+        let primaryLabel: String
+
+        if coolingDown {
+            let wait = BreakState.minutesRoundedUp(from: state.remainingCooldownSeconds())
+            subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
+            primaryLabel = "Next break in \(wait) minute\(wait == 1 ? "" : "s")"
+        } else if hasBreaks {
+            subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
+            primaryLabel = "Take \(Self.article(for: minutes)) \(minutes)-minute break"
+        } else {
+            subtitle = "No breaks left. They come back at midnight."
+            primaryLabel = "Blocked until tomorrow"
+        }
 
         return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
             backgroundColor: UIColor(red: 0.04, green: 0.05, blue: 0.08, alpha: 0.92),
-            icon: UIImage(systemName: hasBreaks ? "hand.raised.fill" : "moon.zzz.fill"),
+            icon: UIImage(systemName: Self.symbol(coolingDown: coolingDown, hasBreaks: hasBreaks)),
             title: ShieldConfiguration.Label(
                 text: "Not right now",
                 color: .white
@@ -70,9 +88,9 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
                 text: primaryLabel,
-                color: hasBreaks ? .white : UIColor.white.withAlphaComponent(0.4)
+                color: canStart ? .white : UIColor.white.withAlphaComponent(0.4)
             ),
-            primaryButtonBackgroundColor: hasBreaks
+            primaryButtonBackgroundColor: canStart
                 ? UIColor(red: 0.29, green: 0.55, blue: 1.0, alpha: 1.0)
                 : UIColor(white: 1.0, alpha: 0.12),
             secondaryButtonLabel: ShieldConfiguration.Label(
