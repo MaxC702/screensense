@@ -9,6 +9,7 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 18) {
                     header
+                    if PreviewEnvironment.isSimulator { simulatorBanner }
                     blockedAppsCard
                     statusCard
                     breaksCard
@@ -53,6 +54,21 @@ struct HomeView: View {
             .accessibilityLabel("Break settings")
         }
         .padding(.top, 8)
+    }
+
+    /// Nothing here is really blocked, and a UI that looks identical to the real
+    /// thing while doing nothing is worth labelling.
+    private var simulatorBanner: some View {
+        Label(
+            "Simulator preview — nothing is actually blocked.",
+            systemImage: "exclamationmark.triangle.fill"
+        )
+        .font(.caption.weight(.medium))
+        .foregroundColor(.orange)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color.orange.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var blockedAppsCard: some View {

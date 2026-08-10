@@ -33,8 +33,16 @@ final class AppModel: ObservableObject {
 
     // MARK: - Derived
 
-    var isAuthorized: Bool { authorizationStatus == .approved }
-    var blockedCount: Int { selection.blockedItemCount }
+    var isAuthorized: Bool {
+        authorizationStatus == .approved || PreviewEnvironment.isSimulator
+    }
+
+    var blockedCount: Int {
+        if PreviewEnvironment.isSimulator, selection.isEmpty {
+            return PreviewEnvironment.stubBlockedItemCount
+        }
+        return selection.blockedItemCount
+    }
     var isOnBreak: Bool { state.isOnBreak(now: now) }
     var isCoolingDown: Bool { state.isCoolingDown(now: now) }
     var breaksRemaining: Int { state.breaksRemaining(limit: settings.breaksPerDay) }
@@ -120,7 +128,7 @@ final class AppModel: ObservableObject {
     }
 
     func setBlocking(_ enabled: Bool) {
-        guard !(enabled && selection.isEmpty) else {
+        guard !(enabled && selection.isEmpty && !PreviewEnvironment.isSimulator) else {
             errorMessage = BreakEngine.BreakError.noAppsSelected.errorDescription
             return
         }

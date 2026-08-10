@@ -61,7 +61,9 @@ enum BreakEngine {
         }
 
         let selection = BreakStore.loadSelection()
-        guard !selection.isEmpty else { throw BreakError.noAppsSelected }
+        guard !selection.isEmpty || PreviewEnvironment.isSimulator else {
+            throw BreakError.noAppsSelected
+        }
 
         let duration = BreakRules.clampMinutes(settings.breakMinutes)
         try armMonitoring(minutes: duration, selection: selection, now: now)
@@ -134,6 +136,11 @@ enum BreakEngine {
         selection: FamilyActivitySelection,
         now: Date
     ) throws {
+        // DeviceActivity refuses to schedule in the Simulator. Skipping it there
+        // leaves the break running on wall clock alone, closed by the in-app
+        // reconcile — enough to exercise the UI, and never reached on device.
+        guard !PreviewEnvironment.isSimulator else { return }
+
         let center = DeviceActivityCenter()
         center.stopMonitoring([.breakWindow])
 
