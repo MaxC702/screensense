@@ -31,10 +31,6 @@ struct SettingsView: View {
             Label("Breaks per day", systemImage: "number")
                 .font(.headline)
 
-            Text("How many times you can let yourself back in.")
-                .font(.subheadline)
-                .foregroundColor(Theme.muted)
-
             Picker(
                 "Breaks per day",
                 selection: Binding(

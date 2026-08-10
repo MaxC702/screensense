@@ -133,7 +133,7 @@ struct HomeView: View {
                 .font(.system(size: 52, weight: .semibold, design: .rounded))
                 .monospacedDigit()
 
-            Text("Break running. Ends sooner if you spend the time in the blocked apps.")
+            Text("Break running")
                 .font(.caption)
                 .foregroundColor(Theme.muted)
                 .multilineTextAlignment(.center)
