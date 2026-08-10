@@ -68,7 +68,7 @@ Breaks reset at your local midnight. There's no scheduled job — state carries 
   compiles for the Simulator, but you cannot test behavior there.
 - Xcode 16+ and iOS 16.0+ on device.
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`.
-- An Apple Developer account. A **free** Apple ID is enough for personal on-device use.
+- An Apple Developer account — realistically the **paid** Program ($99/year). See below.
 
 ## Setup
 
@@ -77,9 +77,12 @@ git clone https://github.com/sleepyowlll/screenblock.git
 cd screenblock
 ```
 
-1. Open `Config/Signing.xcconfig` and set your `DEVELOPMENT_TEAM` (10-character Team ID
-   from Xcode › Settings › Accounts). If the default `BUNDLE_ID_PREFIX` collides with
-   something already registered, change it — the App Group follows automatically.
+1. Open `Config/Signing.xcconfig` and set two values:
+   - `DEVELOPMENT_TEAM` — your 10-character Team ID (Xcode › Settings › Accounts, or
+     developer.apple.com/account › Membership Details).
+   - `BUNDLE_ID_PREFIX` — **change this**. Bundle IDs are globally unique across the App
+     Store, so `com.screenblock.app` will not be available to you. Use something like
+     `com.yourname.screenblock`. The App Group follows automatically.
 
    This is the **only** file you need to edit. All four bundle IDs, all four entitlements
    files, and the App Group identifier in every Info.plist derive from those two values.
@@ -91,18 +94,47 @@ cd screenblock
    open ScreenBlock.xcodeproj
    ```
 
-3. Select your iPhone and run. On first launch, tap **Grant access** and approve the
-   Screen Time prompt.
+3. **Enable Developer Mode on the iPhone** — Settings › Privacy & Security › Developer
+   Mode, toggle on, and let it restart. This is required on iOS 16+ and the option only
+   appears after the phone has been plugged into Xcode at least once.
+
+4. Select your iPhone in Xcode's device menu and press Run. In Xcode's Signing &
+   Capabilities tab, confirm each of the four targets shows your team with no red errors —
+   automatic signing registers the App Group and Family Controls entitlement for you.
+
+5. On the phone, trust the certificate: Settings › General › VPN & Device Management ›
+   your developer account › Trust.
+
+6. Launch the app, tap **Grant access**, and approve the Screen Time prompt.
+
+To test quickly, set break length to 1 minute and the wait to 5 minutes in Settings —
+otherwise you're sitting through real cooldowns to see a state change.
 
 `ScreenBlock.xcodeproj` is generated and gitignored — edit `project.yml`, not the project.
 
-### The entitlement caveat
+### Account and entitlement caveats
 
-`com.apple.developer.family-controls` works for **development builds signed to your own
-device** out of the box. Shipping to TestFlight or the App Store requires
+Two separate things gate this app, and it's worth keeping them apart.
+
+**1. The Family Controls entitlement.** For *development* builds signed to your own device,
+you just tick the Family Controls capability in Xcode — no approval needed. Shipping to
+TestFlight or the App Store requires
 [requesting the distribution entitlement from Apple](https://developer.apple.com/contact/request/family-controls-distribution),
-which is a manual review. Personal use needs nothing beyond a free Apple ID; you'll just
-need to re-sign every 7 days on a free account.
+which is a manual review that can take days or weeks.
+
+**2. Free vs. paid account.** A free Apple ID ("Personal Team") allows on-device testing,
+but with limits that bite this project specifically:
+
+- **10 App IDs per 7 days.** ScreenBlock needs 5 registrations (4 targets + 1 App Group),
+  so two setup attempts in a week can exhaust the quota and lock you out until it resets.
+- **Provisioning expires after 7 days**, so the app stops launching weekly until you
+  rebuild from Xcode.
+- App Group support on a Personal Team is inconsistently reported. Without a working App
+  Group the extensions can't read the app's state, and blocking silently misbehaves.
+
+Try free if you want — it costs nothing and you'll know within half an hour. But the
+[paid Developer Program](https://developer.apple.com/support/compare-memberships/)
+($99/year) is the path that reliably works for a four-target app with shared containers.
 
 ## Using it
 
