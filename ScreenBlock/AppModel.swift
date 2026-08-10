@@ -12,10 +12,10 @@ import SwiftUI
 final class AppModel: ObservableObject {
 
     @Published private(set) var state: BreakState
+    @Published private(set) var settings: BreakSettings
     @Published private(set) var authorizationStatus: AuthorizationStatus
     @Published var selection: FamilyActivitySelection
     @Published var isPickerPresented = false
-    @Published var draftMinutes: Double
     @Published var errorMessage: String?
 
     /// Drives the countdown label. Republished every second only while a break
@@ -25,10 +25,9 @@ final class AppModel: ObservableObject {
     private var ticker: AnyCancellable?
 
     init() {
-        let loaded = BreakStore.loadState()
-        state = loaded
+        state = BreakStore.loadState()
+        settings = BreakStore.loadSettings()
         selection = BreakStore.loadSelection()
-        draftMinutes = Double(BreakRules.clampMinutes(loaded.preferredMinutes))
         authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     }
 
@@ -37,6 +36,7 @@ final class AppModel: ObservableObject {
     var isAuthorized: Bool { authorizationStatus == .approved }
     var blockedCount: Int { selection.blockedItemCount }
     var isOnBreak: Bool { state.isOnBreak(now: now) }
+    var breaksRemaining: Int { state.breaksRemaining(limit: settings.breaksPerDay) }
 
     var countdownText: String {
         let seconds = Int(state.remainingBreakSeconds(now: now).rounded(.up))
@@ -64,6 +64,7 @@ final class AppModel: ObservableObject {
     func refresh() {
         BreakEngine.reconcile()
         state = BreakStore.loadState()
+        settings = BreakStore.loadSettings()
         selection = BreakStore.loadSelection()
         authorizationStatus = AuthorizationCenter.shared.authorizationStatus
         now = .now
@@ -121,12 +122,27 @@ final class AppModel: ObservableObject {
 
     func startBreak() {
         do {
-            state = try BreakEngine.startBreak(minutes: Int(draftMinutes.rounded()))
+            state = try BreakEngine.startBreak()
             now = .now
             updateTicker()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Settings
+
+    /// Writes through to the shared container immediately, so the shield
+    /// extension picks the change up on its very next launch — there is no
+    /// "apply" step and no window where the two disagree.
+    func updateSettings(_ body: (inout BreakSettings) -> Void) {
+        var updated = settings
+        body(&updated)
+        updated.breaksPerDay = BreakRules.clampBreaksPerDay(updated.breaksPerDay)
+        updated.breakMinutes = BreakRules.clampMinutes(updated.breakMinutes)
+        guard updated != settings else { return }
+        settings = updated
+        BreakStore.saveSettings(updated)
     }
 
     /// Ending early does **not** refund the break — that's the point of a budget.

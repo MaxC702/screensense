@@ -39,9 +39,10 @@ class ShieldActionExtension: ShieldActionDelegate {
     private func respond(to action: ShieldAction) -> ShieldActionResponse {
         switch action {
         case .primaryButtonPressed:
-            let minutes = BreakStore.loadState().preferredMinutes
             do {
-                try BreakEngine.startBreak(minutes: minutes)
+                // Length and allowance are read from BreakSettings inside the
+                // engine, so this stays correct when the user changes them.
+                try BreakEngine.startBreak()
                 // `.none` dismisses the shield and lets the user through. The
                 // tokens were already cleared by `startBreak`, so this is not a
                 // one-time bypass — the app is genuinely unblocked until the

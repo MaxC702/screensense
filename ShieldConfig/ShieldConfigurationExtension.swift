@@ -33,20 +33,27 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
     // MARK: - Presentation
 
+    /// "a 5-minute break" but "an 8-minute break". Within the 1...30 range the
+    /// only numbers that read with a leading vowel sound are 8, 11 and 18.
+    private static func article(for minutes: Int) -> String {
+        [8, 11, 18].contains(minutes) ? "an" : "a"
+    }
+
     private static func makeConfiguration() -> ShieldConfiguration {
         // Read fresh: the count may have changed since the last time this
         // extension was spawned.
         let state = BreakStore.loadState()
-        let remaining = state.breaksRemaining
-        let minutes = BreakRules.clampMinutes(state.preferredMinutes)
+        let settings = BreakStore.loadSettings()
+        let remaining = state.breaksRemaining(limit: settings.breaksPerDay)
+        let minutes = BreakRules.clampMinutes(settings.breakMinutes)
 
         let hasBreaks = remaining > 0
         let subtitle = hasBreaks
-            ? "\(remaining) of \(BreakRules.breaksPerDay) breaks left today."
+            ? "\(remaining) of \(settings.breaksPerDay) breaks left today."
             : "No breaks left. They come back at midnight."
 
         let primaryLabel = hasBreaks
-            ? "Take a \(minutes)-minute break"
+            ? "Take \(Self.article(for: minutes)) \(minutes)-minute break"
             : "Blocked until tomorrow"
 
         return ShieldConfiguration(

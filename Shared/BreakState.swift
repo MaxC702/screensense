@@ -1,11 +1,17 @@
 import Foundation
 
-/// The product rules, in one place.
+/// The hard limits, in one place. What the user picks *within* these limits
+/// lives in `BreakSettings`.
 enum BreakRules {
-    static let breaksPerDay = 3
+    static let minBreaksPerDay = 1
+    static let maxBreaksPerDay = 5
+    static let defaultBreaksPerDay = 3
+
     static let minMinutes = 1
     static let maxMinutes = 30
+    static let defaultBreakMinutes = 5
     static let minuteRange = minMinutes...maxMinutes
+    static let breaksRange = minBreaksPerDay...maxBreaksPerDay
 
     /// iOS rejects a `DeviceActivitySchedule` whose interval is shorter than
     /// 15 minutes, so a 1-minute break cannot be expressed as a schedule.
@@ -16,6 +22,10 @@ enum BreakRules {
     static func clampMinutes(_ minutes: Int) -> Int {
         min(max(minutes, minMinutes), maxMinutes)
     }
+
+    static func clampBreaksPerDay(_ count: Int) -> Int {
+        min(max(count, minBreaksPerDay), maxBreaksPerDay)
+    }
 }
 
 /// Everything the four processes need to agree on, small enough to round-trip
@@ -25,9 +35,6 @@ struct BreakState: Codable, Equatable {
     var breaksUsed: Int
     /// Wall-clock deadline for the running break; `nil` when no break is active.
     var breakEndsAt: Date?
-    /// Minutes chosen for the last break. Doubles as the duration the shield's
-    /// "Take a break" button uses, since the shield has no slider.
-    var preferredMinutes: Int
     /// User-facing on/off switch. Blocking is never applied unless this is true.
     var blockingEnabled: Bool
 
@@ -35,19 +42,24 @@ struct BreakState: Codable, Equatable {
         dayKey: String = BreakState.dayKey(for: .now),
         breaksUsed: Int = 0,
         breakEndsAt: Date? = nil,
-        preferredMinutes: Int = 5,
         blockingEnabled: Bool = false
     ) {
         self.dayKey = dayKey
         self.breaksUsed = breaksUsed
         self.breakEndsAt = breakEndsAt
-        self.preferredMinutes = preferredMinutes
         self.blockingEnabled = blockingEnabled
     }
 
     // MARK: - Derived
 
-    var breaksRemaining: Int { max(0, BreakRules.breaksPerDay - breaksUsed) }
+    /// Takes the daily allowance as a parameter rather than reading it, because
+    /// the allowance is user-configurable and lives in `BreakSettings`.
+    ///
+    /// Floors at zero on purpose: lowering the allowance below what's already
+    /// been spent today leaves you at none-left rather than going negative.
+    func breaksRemaining(limit: Int) -> Int {
+        max(0, limit - breaksUsed)
+    }
 
     func isOnBreak(now: Date = .now) -> Bool {
         guard let breakEndsAt else { return false }

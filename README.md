@@ -1,7 +1,8 @@
 # ScreenBlock
 
-An iOS app blocker with **no limit on how many apps you block** and a fixed budget of
-**3 breaks per day, 1–30 minutes each**. Built on Apple's Screen Time APIs
+An iOS app blocker with **no limit on how many apps you block** and a break budget you set
+yourself: **1–5 breaks per day, 1–30 minutes each** (defaults: 3 breaks of 5 minutes).
+Built on Apple's Screen Time APIs
 (FamilyControls / ManagedSettings / DeviceActivity), so the blocking is enforced by iOS
 itself rather than by a VPN profile or a DNS trick.
 
@@ -18,7 +19,7 @@ Four processes share one App Group container:
 
 | Target | Role |
 |---|---|
-| `ScreenBlock` | The app. Pick apps, toggle blocking, spend a break. |
+| `ScreenBlock` | The app. Pick apps, toggle blocking, set the budget, spend a break. |
 | `Monitor` | `DeviceActivityMonitor` extension. Re-applies the block when a break ends — **even if the app is force-quit**. |
 | `ShieldConfig` | Draws the block screen. |
 | `ShieldAction` | Handles taps on that screen, so you can start a break without opening ScreenBlock. |
@@ -93,9 +94,15 @@ need to re-sign every 7 days on a free account.
 1. **Choose apps** — Apple's own picker. Pick as many apps, whole categories, and websites
    as you want.
 2. **Toggle blocking on.** Blocked apps now show the ScreenBlock shield.
-3. **Need in?** Either open ScreenBlock and pick a length with the slider, or tap
-   **Take a break** directly on the block screen — that spends one break at your last-used
-   length and drops you straight into the app.
+3. **Set your budget** — the gear in the top right, or tap the "Each break lasts" row on
+   the home screen. Breaks per day is a 1–5 segmented control; break length is a 1–30
+   minute slider. Changes save immediately and the block screen picks them up at once.
+4. **Need in?** Either open ScreenBlock and hit **Start break**, or tap **Take a break**
+   directly on the block screen — that spends one break and drops you straight into the
+   app without ever leaving it.
+
+Lowering breaks-per-day below what you've already spent today doesn't claw anything back;
+it takes effect from tomorrow, and the settings screen says so when that applies.
 
 ## Privacy
 
@@ -110,7 +117,8 @@ Config/Signing.xcconfig   Team ID + bundle prefix — the only file to edit
 project.yml               XcodeGen spec (4 targets)
 Shared/                   Compiled into all four targets
   AppIdentifiers.swift    App Group plumbing
-  BreakState.swift        Rules + state model + daily rollover
+  BreakState.swift        Hard limits + state model + daily rollover
+  BreakSettings.swift     User-chosen breaks/day and break length
   BreakStore.swift        App Group persistence
   ShieldController.swift  The only writer of shield tokens
   BreakEngine.swift       start / end / reconcile a break

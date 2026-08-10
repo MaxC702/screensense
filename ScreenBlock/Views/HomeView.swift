@@ -5,22 +5,28 @@ struct HomeView: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                header
-                blockedAppsCard
-                statusCard
-                breaksCard
-                footnote
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 18) {
+                    header
+                    blockedAppsCard
+                    statusCard
+                    breaksCard
+                    footnote
+                }
+                .padding(20)
             }
-            .padding(20)
+            .background(Theme.background.ignoresSafeArea())
+            // Hidden only for this screen; SettingsView brings its own bar back.
+            .toolbar(.hidden, for: .navigationBar)
+            .familyActivityPicker(isPresented: $model.isPickerPresented, selection: $model.selection)
+            .onChange(of: model.isPickerPresented) { presented in
+                // Commit when Apple's picker dismisses rather than on every keystroke
+                // inside it — the picker mutates the binding continuously.
+                if !presented { model.commitSelection() }
+            }
         }
-        .familyActivityPicker(isPresented: $model.isPickerPresented, selection: $model.selection)
-        .onChange(of: model.isPickerPresented) { presented in
-            // Commit when Apple's picker dismisses rather than on every keystroke
-            // inside it — the picker mutates the binding continuously.
-            if !presented { model.commitSelection() }
-        }
+        .tint(Theme.accent)
     }
 
     // MARK: - Sections
@@ -35,6 +41,16 @@ struct HomeView: View {
                     .foregroundColor(Theme.muted)
             }
             Spacer()
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Theme.card, in: Circle())
+            }
+            .accessibilityLabel("Break settings")
         }
         .padding(.top, 8)
     }
@@ -94,17 +110,18 @@ struct HomeView: View {
             if model.isOnBreak {
                 activeBreak
             } else {
-                breakPicker
+                idleBreak
             }
         }
     }
 
-    /// Three dots — spent breaks hollow out. Faster to read than "2/3".
+    /// One dot per allowed break; spent ones hollow out. Faster to read than
+    /// "2/3", and the row length itself shows the configured allowance.
     private var breakPips: some View {
         HStack(spacing: 6) {
-            ForEach(0..<BreakRules.breaksPerDay, id: \.self) { index in
+            ForEach(0..<model.settings.breaksPerDay, id: \.self) { index in
                 Circle()
-                    .fill(index < model.state.breaksRemaining ? Theme.accent : Color.white.opacity(0.15))
+                    .fill(index < model.breaksRemaining ? Theme.accent : Color.white.opacity(0.15))
                     .frame(width: 10, height: 10)
             }
         }
@@ -135,42 +152,66 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var breakPicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Length")
+    private var idleBreak: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Second route into settings, right next to the number it changes —
+            // the gear alone makes you go looking for it.
+            NavigationLink {
+                SettingsView()
+            } label: {
+                HStack(spacing: 6) {
+                    Text("Each break lasts")
+                        .foregroundColor(Theme.muted)
+                    Spacer()
+                    Text("\(model.settings.breakMinutes) min")
+                        .font(.headline.monospacedDigit())
+                        .foregroundColor(.white)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(Theme.muted)
+                }
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            HStack(spacing: 6) {
+                Text("Breaks per day")
                     .foregroundColor(Theme.muted)
                 Spacer()
-                Text("\(Int(model.draftMinutes)) min")
+                Text("\(model.settings.breaksPerDay)")
                     .font(.headline.monospacedDigit())
             }
-
-            Slider(
-                value: $model.draftMinutes,
-                in: Double(BreakRules.minMinutes)...Double(BreakRules.maxMinutes),
-                step: 1
-            )
-            .tint(Theme.accent)
+            .padding(.vertical, 8)
 
             Button {
                 model.startBreak()
             } label: {
-                Text(model.state.breaksRemaining > 0 ? "Start break" : "No breaks left today")
+                Text(canStartBreak
+                     ? "Start \(model.settings.breakMinutes)-minute break"
+                     : "No breaks left today")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        model.state.breaksRemaining > 0 ? Theme.accent : Color.white.opacity(0.1),
+                        canStartBreak ? Theme.accent : Color.white.opacity(0.1),
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                     )
-                    .foregroundColor(model.state.breaksRemaining > 0 ? .white : Theme.muted)
+                    .foregroundColor(canStartBreak ? .white : Theme.muted)
             }
-            .disabled(model.state.breaksRemaining == 0 || !model.state.blockingEnabled)
+            .disabled(!canStartBreak)
+            .padding(.top, 8)
         }
     }
 
+    private var canStartBreak: Bool {
+        model.breaksRemaining > 0 && model.state.blockingEnabled
+    }
+
     private var footnote: some View {
-        Text("Breaks reset at midnight. You can also start one straight from the block screen without opening ScreenBlock.")
+        Text("Breaks reset at midnight. Tap the gear to change how many you get and how long they last. You can also start one straight from the block screen without opening ScreenBlock.")
             .font(.caption)
             .foregroundColor(Theme.muted)
             .multilineTextAlignment(.center)

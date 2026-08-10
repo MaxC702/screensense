@@ -10,6 +10,21 @@ import Foundation
 enum BreakStore {
     private static let stateKey = "screenblock.state.v1"
     private static let selectionKey = "screenblock.selection.v1"
+    private static let settingsKey = "screenblock.settings.v1"
+
+    // MARK: - Settings
+
+    static func loadSettings() -> BreakSettings {
+        guard let data = UserDefaults.shared.data(forKey: settingsKey),
+              let settings = try? JSONDecoder().decode(BreakSettings.self, from: data)
+        else { return BreakSettings() }
+        return settings
+    }
+
+    static func saveSettings(_ settings: BreakSettings) {
+        guard let data = try? JSONEncoder().encode(settings) else { return }
+        UserDefaults.shared.set(data, forKey: settingsKey)
+    }
 
     // MARK: - Break state
 

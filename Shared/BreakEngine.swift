@@ -13,7 +13,7 @@ enum BreakEngine {
 
     enum BreakError: LocalizedError {
         case noAppsSelected
-        case noBreaksLeft
+        case noBreaksLeft(limit: Int)
         case alreadyOnBreak
         case schedulingFailed(String)
 
@@ -21,8 +21,8 @@ enum BreakEngine {
             switch self {
             case .noAppsSelected:
                 return "Choose at least one app to block first."
-            case .noBreaksLeft:
-                return "You've used all \(BreakRules.breaksPerDay) breaks today. They reset at midnight."
+            case .noBreaksLeft(let limit):
+                return "You've used all \(limit) break\(limit == 1 ? "" : "s") today. They reset at midnight."
             case .alreadyOnBreak:
                 return "A break is already running."
             case .schedulingFailed(let reason):
@@ -33,26 +33,33 @@ enum BreakEngine {
 
     // MARK: - Start
 
-    /// Spends one of the day's breaks and lifts the shield for `minutes`.
+    /// Spends one of the day's breaks and lifts the shield for the configured
+    /// break length.
+    ///
+    /// Duration and allowance both come from `BreakSettings` rather than from
+    /// the caller, so the app and the shield-action extension cannot disagree
+    /// about how long a break lasts or how many are left.
     ///
     /// The shield is only cleared *after* monitoring is successfully armed. If
     /// arming failed and we had cleared first, the apps would be unblocked with
     /// nothing scheduled to ever block them again.
     @discardableResult
-    static func startBreak(minutes: Int, now: Date = .now) throws -> BreakState {
+    static func startBreak(now: Date = .now) throws -> BreakState {
         var state = BreakStore.loadState(now: now)
+        let settings = BreakStore.loadSettings()
 
         guard !state.isOnBreak(now: now) else { throw BreakError.alreadyOnBreak }
-        guard state.breaksRemaining > 0 else { throw BreakError.noBreaksLeft }
+        guard state.breaksRemaining(limit: settings.breaksPerDay) > 0 else {
+            throw BreakError.noBreaksLeft(limit: settings.breaksPerDay)
+        }
 
         let selection = BreakStore.loadSelection()
         guard !selection.isEmpty else { throw BreakError.noAppsSelected }
 
-        let duration = BreakRules.clampMinutes(minutes)
+        let duration = BreakRules.clampMinutes(settings.breakMinutes)
         try armMonitoring(minutes: duration, selection: selection, now: now)
 
         state.breaksUsed += 1
-        state.preferredMinutes = duration
         state.breakEndsAt = now.addingTimeInterval(TimeInterval(duration * 60))
         BreakStore.save(state)
 
