@@ -9,11 +9,11 @@
 //    or in Xcode: Settings -> Accounts -> your Apple ID -> Team.
 //    A free "Personal Team" can work but hits a 10-App-IDs-per-7-days cap that
 //    this 4-target app is quick to exhaust. See the README before you start.
-DEVELOPMENT_TEAM =
+DEVELOPMENT_TEAM = X9YN79V4C8
 
 // 2. Reverse-DNS prefix for the app. Extensions get .monitor / .shieldconfig /
 //    .shieldaction appended automatically. Must be unique to you.
-BUNDLE_ID_PREFIX = com.screenblock.app
+BUNDLE_ID_PREFIX = com.chernobayev.screenblock
 
 // 3. The App Group is the shared container the app and its three extensions use
 //    to agree on how many breaks are left. Apple requires the "group." prefix.
