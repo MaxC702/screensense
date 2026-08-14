@@ -174,6 +174,9 @@ ScreenBlock/              SwiftUI app
 Monitor/                  DeviceActivityMonitor extension
 ShieldConfig/             Block screen appearance
 ShieldAction/             Block screen buttons
+Tools/
+  make-icon.swift         Renders the app icon
+  ui-preview.html         Every screen and state, in a browser
 ```
 
 ## Known limits
@@ -185,6 +188,26 @@ ShieldAction/             Block screen buttons
   blocked apps — the reconcile pass cleans that up next time you open ScreenBlock.
 - Only the standard icon is supplied. iOS 18+ derives its dark and tinted home-screen
   variants automatically; hand-tuned ones aren't included.
+
+## The UI preview
+
+`Tools/ui-preview.html` renders every screen and state as static HTML — open it in any
+browser, no Xcode and no device:
+
+```bash
+open Tools/ui-preview.html
+```
+
+Thirteen frames: the permission gate (granted and denied), the home screen across its
+states (nothing selected, idle, break running, cooling down, budget spent, and a 5 × 20
+minute configuration), settings at defaults and with both warnings showing, and the three
+block screens. Copy and enable/disable rules are transcribed from the sources, and the
+palette comes from `Theme` in `RootView.swift`, so the two can be diffed by eye.
+
+It is a *reference*, not a build: the SF Symbols are hand-drawn SVG approximations and the
+system controls (segmented picker, sliders, toggle, shield sheet) are CSS lookalikes. It
+also can't tell you whether anything works — it renders states, it doesn't run the engine.
+The Simulator remains the only place the real layout and the real logic are both true.
 
 ## The app icon
 
