@@ -59,17 +59,26 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         let hasBreaks = remaining > 0
         let canStart = hasBreaks && !coolingDown
 
+        // The title carries the same distinction as the button. "Not right now"
+        // is a *wait* — it only makes sense while the cooldown is running, when
+        // coming back shortly does work. Saying it to someone with a break in
+        // hand is wrong (they can go right now), and saying it to someone out of
+        // breaks is a false promise (nothing changes until midnight).
+        let title: String
         let subtitle: String
         let primaryLabel: String
 
         if coolingDown {
             let wait = BreakState.minutesRoundedUp(from: state.remainingCooldownSeconds())
+            title = "Not right now"
             subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
             primaryLabel = "Next break in \(wait) minute\(wait == 1 ? "" : "s")"
         } else if hasBreaks {
+            title = "You blocked this"
             subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
             primaryLabel = "Take \(Self.article(for: minutes)) \(minutes)-minute break"
         } else {
+            title = "Done for today"
             subtitle = "No breaks left. They come back at midnight."
             primaryLabel = "Blocked until tomorrow"
         }
@@ -79,7 +88,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             backgroundColor: UIColor(red: 0.04, green: 0.05, blue: 0.08, alpha: 0.92),
             icon: UIImage(systemName: Self.symbol(coolingDown: coolingDown, hasBreaks: hasBreaks)),
             title: ShieldConfiguration.Label(
-                text: "Not right now",
+                text: title,
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(

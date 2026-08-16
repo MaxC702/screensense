@@ -278,7 +278,7 @@ function shield(o){
   <div class="shield-bg"></div>
   <div class="body" style="z-index:2"><div class="shield">
     ${I.hand}
-    <div style="font-size:22px;font-weight:700">Not right now</div>
+    <div style="font-size:22px;font-weight:700">${o.title}</div>
     <div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.4">${o.subtitle}</div>
     <div style="width:100%;display:flex;flex-direction:column;gap:9px;margin-top:8px">
       <div class="${o.canStart?'btn solid':'btn off'}" style="border-radius:22px;padding:13px 0">${o.primary}</div>
@@ -316,11 +316,11 @@ const frames = [
   ["Settings — edge cases", "Allowance lowered below today's usage, and edited mid-cooldown; both warn instead of acting retroactively.",
     settings({perDay:2,minutes:12,cooldown:45,overspent:true,used:3,coolingDown:true,cooldownText:"12:30"})],
   ["Block screen — break available", "<code>ShieldConfiguration</code>, drawn by iOS over the blocked app. Approximate: the real one is a system sheet over a live blur.",
-    shield({subtitle:"2 of 3 breaks left today.",primary:"Take a 5-minute break",canStart:true})],
-  ["Block screen — cooling down", "Says <em>which</em> reason applies: “come back in 12 minutes” is actionable, “no breaks left” isn't.",
-    shield({subtitle:"2 of 3 breaks left today.",primary:"Next break in 13 minutes",canStart:false})],
+    shield({title:"You blocked this",subtitle:"2 of 3 breaks left today.",primary:"Take a 5-minute break",canStart:true})],
+  ["Block screen — cooling down", "The only state that says “Not right now”, because it's the only one where coming back shortly works.",
+    shield({title:"Not right now",subtitle:"2 of 3 breaks left today.",primary:"Next break in 13 minutes",canStart:false})],
   ["Block screen — none left", "<code>moon.zzz.fill</code> in the real build; button is inert until midnight.",
-    shield({subtitle:"No breaks left. They come back at midnight.",primary:"Blocked until tomorrow",canStart:false})],
+    shield({title:"Done for today",subtitle:"No breaks left. They come back at midnight.",primary:"Blocked until tomorrow",canStart:false})],
 ];
 
 document.getElementById('grid').innerHTML = frames.map(([t,d,html])=>`
