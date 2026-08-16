@@ -14,6 +14,7 @@ struct HomeView: View {
                     statusCard
                     breaksCard
                     footnote
+                    buildStamp
                 }
                 .padding(20)
             }
@@ -253,5 +254,21 @@ struct HomeView: View {
             .foregroundColor(Theme.muted)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 8)
+    }
+
+    /// Which build is actually on the phone.
+    ///
+    /// Reinstalling over an app that is already installed gives no other signal
+    /// that the new binary took — the icon doesn't change and the app relaunches
+    /// looking identical. Reading it from the bundle rather than hardcoding it
+    /// means it tracks `CURRENT_PROJECT_VERSION` in project.yml automatically.
+    private var buildStamp: some View {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+
+        return Text("v\(version) (\(build))")
+            .font(.caption2.monospacedDigit())
+            .foregroundColor(Theme.muted)
     }
 }
