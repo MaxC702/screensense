@@ -28,17 +28,32 @@ Four processes share one App Group container:
 ### The break mechanism
 
 This is the one genuinely tricky part. iOS **rejects any `DeviceActivitySchedule` shorter
-than 15 minutes**, so a 1-minute break cannot be expressed as a schedule. ScreenBlock uses
-two triggers instead:
+than 15 minutes**, so a 1-minute break cannot be expressed as the length of a schedule.
 
-1. **`DeviceActivityEvent` threshold (primary).** Thresholds go down to 1 minute and fire
-   on *accumulated usage* of the blocked apps. A "5-minute break" is therefore 5 minutes
-   of actually using those apps — idle time in your pocket doesn't burn it.
-2. **Padded schedule interval (backstop).** The monitoring window is padded up to the
-   15-minute floor. `intervalDidEnd` closes any break whose threshold never tripped —
-   e.g. you started a break and then never opened the app.
+The way around it is that the 15-minute floor governs how *long* an interval may be, not
+how far ahead it may begin. So a break arms a second activity, `.breakEnd`, whose interval
+is scheduled to **start** at the moment the break expires. `intervalDidStart` then fires
+then, to the second, and re-applies the shield — even if the user is still inside the
+blocked app at that moment.
+
+Three triggers, in the order they're relied on:
+
+1. **Resume interval (primary).** `.breakEnd` begins when the break's wall clock runs out.
+   Accurate to the second and independent of what the user is doing.
+2. **`DeviceActivityEvent` threshold + padded interval (backstop).** Thresholds fire on
+   accumulated usage of the blocked apps, and the padded window fires `intervalDidEnd` at
+   the 15-minute floor. Both only matter if the resume interval fails to fire.
 3. **Foreground reconcile (repair).** `BreakEngine.reconcile()` runs on every app launch
    and foreground, closing a break whose wall clock expired while nothing was watching.
+
+All three call `BreakEngine.endBreak()`, which is idempotent — whichever arrives first
+wins and the others are no-ops.
+
+Breaks are **wall clock**, not usage. A 5-minute break ends five minutes after it starts
+whether you spent them in the app or left the phone face-down. An earlier version counted
+usage instead, so that idle time didn't burn the break — a nicer idea that iOS cannot
+actually deliver, because usage is accounted in coarse batches and a short threshold
+arrives minutes late or, if the blocked app is never opened, not at all.
 
 Ending a break early does **not** refund it. That's the point of a budget.
 
@@ -184,8 +199,8 @@ Tools/
 - Determined users can disable the block by deleting the app or revoking Screen Time
   access in Settings. There is no lock-down mode; this is a speed bump against impulse,
   not a security control.
-- Usage-based break timing means a break can outlive its wall clock if you never open the
-  blocked apps — the reconcile pass cleans that up next time you open ScreenBlock.
+- The shield returns the second a break expires, but iOS decides when to draw it over an
+  app that is already open. Expect it to land within moments rather than instantly.
 - Only the standard icon is supplied. iOS 18+ derives its dark and tinted home-screen
   variants automatically; hand-tuned ones aren't included.
 

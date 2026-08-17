@@ -21,9 +21,11 @@ enum BreakRules {
     static let cooldownRange = minCooldownMinutes...maxCooldownMinutes
 
     /// iOS rejects a `DeviceActivitySchedule` whose interval is shorter than
-    /// 15 minutes, so a 1-minute break cannot be expressed as a schedule.
-    /// Short breaks are enforced by a usage *event threshold* instead, and the
-    /// padded interval below exists only as a backstop that closes the window.
+    /// 15 minutes, so a 1-minute break cannot be expressed as one interval's
+    /// length. The floor constrains duration, not start time, so a break is
+    /// instead ended by a second interval scheduled to *begin* when it expires.
+    /// This constant is that interval's length, and the padding on the usage
+    /// window that backs it up.
     static let minimumScheduleMinutes = 15
 
     static func clampMinutes(_ minutes: Int) -> Int {

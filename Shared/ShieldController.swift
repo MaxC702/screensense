@@ -12,6 +12,13 @@ extension ManagedSettingsStore.Name {
 
 extension DeviceActivityName {
     static let breakWindow = Self("screenblock.breakWindow")
+
+    /// An interval that *starts* the instant a break's wall clock runs out, so
+    /// `intervalDidStart` gives us a callback at an arbitrary time. iOS's
+    /// 15-minute floor constrains how long an interval may be, not how far ahead
+    /// it may begin — which is the loophole that makes a 1-minute break
+    /// enforceable at all.
+    static let breakEnd = Self("screenblock.breakEnd")
 }
 
 extension DeviceActivityEvent.Name {
@@ -27,9 +34,15 @@ enum ShieldController {
     static let store = ManagedSettingsStore(named: .screenBlock)
 
     /// Applies the user's saved selection. Safe to call repeatedly.
-    static func applyShield() {
+    /// `log: false` for the steady-state re-assert on every foreground, which is
+    /// correct but happens constantly and buried everything interesting.
+    static func applyShield(source: String = "app", log: Bool = true) {
         let selection = BreakStore.loadSelection()
         guard !selection.isEmpty else {
+            // If this ever fires from an extension it is the bug: the extension
+            // could not read the selection, so it *clears* the block instead of
+            // applying it, and the apps stay open.
+            BreakLog.record("applyShield: selection is EMPTY — clearing instead", source: source)
             clearShield()
             return
         }
@@ -52,6 +65,13 @@ enum ShieldController {
         store.shield.webDomainCategories = selection.categoryTokens.isEmpty
             ? nil
             : .specific(selection.categoryTokens)
+
+        if log {
+            BreakLog.record(
+                "shield applied: \(selection.applicationTokens.count) apps, \(selection.categoryTokens.count) categories, \(selection.webDomainTokens.count) sites",
+                source: source
+            )
+        }
     }
 
     static func clearShield() {

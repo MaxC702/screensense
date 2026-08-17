@@ -73,6 +73,10 @@ enum BreakEngine {
         BreakStore.save(state)
 
         ShieldController.clearShield()
+        BreakLog.record(
+            "break started, \(duration)m, ends \(Self.clock(state.breakEndsAt ?? now))",
+            source: "app"
+        )
         return state
     }
 
@@ -83,14 +87,34 @@ enum BreakEngine {
     /// Idempotent, because it can be called by the usage threshold, the interval
     /// backstop, and the app's foreground check — potentially all three for the
     /// same break.
-    static func endBreak(now: Date = .now) {
-        DeviceActivityCenter().stopMonitoring([.breakWindow])
+    static func endBreak(now: Date = .now, source: String = "app") {
+        let existing = BreakStore.loadState(now: now)
+
+        // Nothing running: don't re-apply, and above all don't tear down again.
+        // `stopMonitoring` delivers `intervalDidEnd` for the activity it stops,
+        // which calls straight back into here — so without this guard one expiry
+        // ran the whole slow path twice.
+        guard existing.breakEndsAt != nil else {
+            BreakLog.record("endBreak (\(source)): no break was running", source: source)
+            return
+        }
+
+        // The shield goes on FIRST. It is the only step the user is waiting for,
+        // and everything below it — a UserDefaults round trip, then tearing down
+        // two DeviceActivity registrations — measured 31 seconds inside the
+        // monitor extension. Doing that work first is what made a 1-minute break
+        // run for a minute and a half.
+        if existing.blockingEnabled {
+            ShieldController.applyShield(source: source)
+        } else {
+            BreakLog.record("endBreak (\(source)): blocking is off, nothing to re-apply", source: source)
+        }
+
         let settings = BreakStore.loadSettings()
 
-        let state = BreakStore.mutate(now: now) { state in
-            // Only arm a cooldown if a break was actually running. Without this
-            // guard, the repeat calls described above would each push the
-            // cooldown further out and it would never expire.
+        // Clear `breakEndsAt` *before* stopping monitoring, so that the re-entrant
+        // call described above hits the guard at the top and returns immediately.
+        BreakStore.mutate(now: now) { state in
             guard let scheduledEnd = state.breakEndsAt else { return }
 
             // Anchor the cooldown to when the break *actually* ended, not to the
@@ -104,8 +128,14 @@ enum BreakEngine {
             state.breakEndsAt = nil
         }
 
-        guard state.blockingEnabled else { return }
-        ShieldController.applyShield()
+        DeviceActivityCenter().stopMonitoring([.breakWindow, .breakEnd])
+    }
+
+    /// `HH:mm:ss`, which is the only part of a timestamp that matters when you are
+    /// checking whether something fired on time.
+    static func clock(_ date: Date) -> String {
+        let parts = Calendar.current.dateComponents([.hour, .minute, .second], from: date)
+        return String(format: "%02d:%02d:%02d", parts.hour ?? 0, parts.minute ?? 0, parts.second ?? 0)
     }
 
     /// Cheap consistency check to run whenever the app comes to the foreground.
@@ -123,9 +153,10 @@ enum BreakEngine {
         }
 
         if state.breakEndsAt != nil, !state.isOnBreak(now: now) {
-            endBreak()
+            BreakLog.record("reconcile: found an expired break still open", source: "app/reconcile")
+            endBreak(source: "app/reconcile")
         } else if state.breakEndsAt == nil {
-            ShieldController.applyShield()
+            ShieldController.applyShield(source: "app/reconcile", log: false)
         }
     }
 
@@ -142,24 +173,49 @@ enum BreakEngine {
         guard !PreviewEnvironment.isSimulator else { return }
 
         let center = DeviceActivityCenter()
-        center.stopMonitoring([.breakWindow])
+        center.stopMonitoring([.breakWindow, .breakEnd])
 
         let calendar = Calendar.current
+        let components: (Date) -> DateComponents = {
+            calendar.dateComponents([.hour, .minute, .second], from: $0)
+        }
 
-        // Two independent triggers cover the break:
+        // Primary trigger: an interval that *begins* when the break's wall clock
+        // expires. `intervalDidStart` then fires at that moment, whatever the
+        // user happens to be doing.
         //
-        //  1. `threshold` — fires after `minutes` of *actual usage* of the
-        //     blocked apps. This is the real enforcement, and it is the only
-        //     mechanism that works below 15 minutes.
-        //  2. The schedule interval — padded up to iOS's 15-minute minimum, it
-        //     fires `intervalDidEnd` as a backstop so a break can never be left
-        //     open forever if the threshold never trips.
+        // This exists because the usage threshold below cannot be trusted to be
+        // punctual. iOS accounts usage in coarse batches, so a 1-minute
+        // threshold can land minutes late or, if the user never opens a blocked
+        // app, never at all — leaving the break open until the padded window
+        // closed it a quarter of an hour later.
+        let breakEnd = now.addingTimeInterval(TimeInterval(minutes * 60))
+        let resumeSchedule = DeviceActivitySchedule(
+            intervalStart: components(breakEnd),
+            intervalEnd: components(
+                breakEnd.addingTimeInterval(TimeInterval(BreakRules.minimumScheduleMinutes * 60))
+            ),
+            repeats: false
+        )
+
+        do {
+            try center.startMonitoring(.breakEnd, during: resumeSchedule)
+            BreakLog.record("armed resume interval for \(Self.clock(breakEnd))", source: "app")
+        } catch {
+            BreakLog.record("resume interval FAILED: \(error.localizedDescription)", source: "app")
+            throw BreakError.schedulingFailed(error.localizedDescription)
+        }
+
+        // Secondary trigger: usage threshold, plus the padded interval as a
+        // backstop that fires `intervalDidEnd`. Both now only matter if the
+        // resume interval above fails to fire; `endBreak` is idempotent, so
+        // whichever arrives first wins and the rest are no-ops.
         let windowMinutes = max(minutes, BreakRules.minimumScheduleMinutes) + 1
         let windowEnd = now.addingTimeInterval(TimeInterval(windowMinutes * 60))
 
         let schedule = DeviceActivitySchedule(
-            intervalStart: calendar.dateComponents([.hour, .minute, .second], from: now),
-            intervalEnd: calendar.dateComponents([.hour, .minute, .second], from: windowEnd),
+            intervalStart: components(now),
+            intervalEnd: components(windowEnd),
             repeats: false
         )
 
@@ -177,6 +233,8 @@ enum BreakEngine {
                 events: [.breakUsage: event]
             )
         } catch {
+            // Don't leave the resume trigger armed for a break that never began.
+            center.stopMonitoring([.breakEnd])
             throw BreakError.schedulingFailed(error.localizedDescription)
         }
     }
