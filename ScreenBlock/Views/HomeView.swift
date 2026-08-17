@@ -7,16 +7,23 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 13) {
                     header
                     if PreviewEnvironment.isSimulator { simulatorBanner }
+
+                    SectionLabel("Protection")
                     blockedAppsCard
                     statusCard
-                    breaksCard
+
+                    SectionLabel("Breaks")
+                    breaksHero
+                    if !model.isOnBreak { budgetRows }
+
                     footnote
                     buildStamp
                 }
-                .padding(20)
+                .padding(.horizontal, 17)
+                .padding(.bottom, 17)
             }
             .background(Theme.background.ignoresSafeArea())
             // Hidden only for this screen; SettingsView brings its own bar back.
@@ -28,33 +35,40 @@ struct HomeView: View {
                 if !presented { model.commitSelection() }
             }
         }
-        .tint(Theme.accent)
+        .tint(Theme.accentSoft)
     }
 
-    // MARK: - Sections
+    // MARK: - Header
 
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("ScreenBlock")
-                    .font(.largeTitle.bold())
-                Text(model.state.blockingEnabled ? "Blocking is on" : "Blocking is off")
-                    .font(.subheadline)
-                    .foregroundColor(Theme.muted)
+                    .font(Theme.display(28))
+                    .kerning(0.3)
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(model.state.blockingEnabled ? Color.green : Theme.faint)
+                        .frame(width: 7, height: 7)
+                    Text(model.state.blockingEnabled ? "Blocking is on" : "Blocking is off")
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.muted)
+                }
             }
             Spacer()
             NavigationLink {
                 SettingsView()
             } label: {
                 Image(systemName: "gearshape.fill")
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Theme.card, in: Circle())
+                    .frame(width: 38, height: 38)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             }
             .accessibilityLabel("Break settings")
         }
-        .padding(.top, 8)
+        .padding(.top, 4)
     }
 
     /// Nothing here is really blocked, and a UI that looks identical to the real
@@ -64,35 +78,46 @@ struct HomeView: View {
             "Simulator preview — nothing is actually blocked.",
             systemImage: "exclamationmark.triangle.fill"
         )
-        .font(.caption.weight(.medium))
+        .font(.system(size: 11, weight: .medium))
         .foregroundColor(.orange)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color.orange.opacity(0.12),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(11)
+        .background(
+            Color.orange.opacity(0.10),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
     }
+
+    // MARK: - Protection
 
     private var blockedAppsCard: some View {
         Card {
-            Label("Blocked apps", systemImage: "square.grid.2x2.fill")
-                .font(.headline)
-
-            Text(model.blockedCount == 0
-                 ? "Nothing selected yet."
-                 : "\(model.blockedCount) selected — apps, categories and sites.")
-                .font(.subheadline)
-                .foregroundColor(Theme.muted)
+            HStack(spacing: 10) {
+                IconTile(symbol: "square.grid.2x2.fill")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Blocked apps").font(Theme.display(15, .medium))
+                    Text(model.blockedCount == 0
+                         ? "Nothing selected yet"
+                         : "\(model.blockedCount) apps, categories and sites")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.muted)
+                }
+                Spacer()
+                chevron
+            }
 
             Button {
                 model.isPickerPresented = true
             } label: {
                 Text(model.blockedCount == 0 ? "Choose apps" : "Edit selection")
-                    .font(.subheadline.bold())
+                    .font(.system(size: 13, weight: .bold))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Theme.accent.opacity(0.18),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .foregroundColor(Theme.accent)
+                    .padding(.vertical, 11)
+                    .background(
+                        Theme.accent.opacity(0.16),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+                    .foregroundColor(Theme.accentSoft)
             }
         }
     }
@@ -103,125 +128,122 @@ struct HomeView: View {
                 get: { model.state.blockingEnabled },
                 set: { model.setBlocking($0) }
             )) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Block these apps").font(.headline)
-                    Text("Stays on until you spend a break.")
-                        .font(.caption)
-                        .foregroundColor(Theme.muted)
+                HStack(spacing: 10) {
+                    IconTile(symbol: "lock.shield.fill")
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Block these apps").font(Theme.display(15, .medium))
+                        Text("Stays on until you spend a break")
+                            .font(.system(size: 11.5))
+                            .foregroundColor(Theme.muted)
+                    }
                 }
             }
             .tint(Theme.accent)
             .disabled(model.blockedCount == 0)
+            .opacity(model.blockedCount == 0 ? 0.45 : 1)
         }
     }
 
-    private var breaksCard: some View {
-        Card {
+    // MARK: - Breaks
+
+    /// Carries the gradient only when there is something to act on — a break to
+    /// take, or one running. Cooling down and out-of-breaks go flat, so the card
+    /// says whether the app is open to you before any of its text is read.
+    private var heroIsLive: Bool { model.canStartBreak || model.isOnBreak }
+
+    private var breaksHero: some View {
+        VStack(spacing: 14) {
             HStack {
-                Label("Breaks today", systemImage: "cup.and.saucer.fill")
-                    .font(.headline)
+                Text(model.isOnBreak ? "On a break" : "Breaks today")
+                    .font(Theme.display(15, .medium))
                 Spacer()
-                breakPips
+                Pill(text: "\(model.breaksRemaining) of \(model.settings.breaksPerDay)")
+            }
+
+            BreakRing(fraction: ringFraction, onGradient: heroIsLive) {
+                VStack(spacing: 5) {
+                    Text(model.isOnBreak ? model.countdownText : "\(model.breaksRemaining)")
+                        .font(Theme.display(model.isOnBreak ? 31 : 38, .ultraLight))
+                        .monospacedDigit()
+                    Text(ringCaption)
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .kerning(0.4)
+                        .foregroundColor(.white.opacity(0.7))
+                }
             }
 
             if model.isOnBreak {
-                activeBreak
+                endBreakButton
             } else {
-                idleBreak
-            }
-        }
-    }
-
-    /// One dot per allowed break; spent ones hollow out. Faster to read than
-    /// "2/3", and the row length itself shows the configured allowance.
-    private var breakPips: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<model.settings.breaksPerDay, id: \.self) { index in
-                Circle()
-                    .fill(index < model.breaksRemaining ? Theme.accent : Color.white.opacity(0.15))
-                    .frame(width: 10, height: 10)
-            }
-        }
-    }
-
-    private var activeBreak: some View {
-        VStack(spacing: 14) {
-            Text(model.countdownText)
-                .font(.system(size: 52, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-
-            Text("Break running")
-                .font(.caption)
-                .foregroundColor(Theme.muted)
-                .multilineTextAlignment(.center)
-
-            Button(role: .destructive) {
-                model.endBreakEarly()
-            } label: {
-                Text("End break now")
-                    .font(.subheadline.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.red.opacity(0.15),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var idleBreak: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Second route into settings, right next to the number it changes —
-            // the gear alone makes you go looking for it.
-            NavigationLink {
-                SettingsView()
-            } label: {
-                HStack(spacing: 6) {
-                    Text("Each break lasts")
-                        .foregroundColor(Theme.muted)
-                    Spacer()
-                    Text("\(model.settings.breakMinutes) min")
-                        .font(.headline.monospacedDigit())
-                        .foregroundColor(.white)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(Theme.muted)
+                startBreakButton
+                if model.isCoolingDown {
+                    Text("Breaks are spaced out so you can't take them back to back.")
+                        .font(.system(size: 11))
+                        .foregroundColor(heroIsLive ? .white.opacity(0.8) : Theme.muted)
+                        .multilineTextAlignment(.center)
                 }
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(heroBackground)
+    }
 
-            Divider().overlay(Color.white.opacity(0.08))
-            valueRow("Breaks per day", "\(model.settings.breaksPerDay)")
+    @ViewBuilder
+    private var heroBackground: some View {
+        let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
+        if heroIsLive {
+            shape.fill(Theme.gradient)
+                .shadow(color: Theme.accent.opacity(0.32), radius: 17, y: 8)
+        } else {
+            shape.fill(Theme.card)
+        }
+    }
 
-            Divider().overlay(Color.white.opacity(0.08))
-            valueRow("Wait between breaks", "\(model.settings.cooldownMinutes) min")
+    private var ringFraction: Double {
+        model.isOnBreak
+            ? model.breakProgress
+            : Double(model.breaksRemaining) / Double(max(model.settings.breaksPerDay, 1))
+    }
 
-            Button {
-                model.startBreak()
-            } label: {
-                Text(startButtonTitle)
-                    .font(.headline)
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        model.canStartBreak ? Theme.accent : Color.white.opacity(0.1),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
-                    .foregroundColor(model.canStartBreak ? .white : Theme.muted)
-            }
-            .disabled(!model.canStartBreak)
-            .padding(.top, 8)
+    private var ringCaption: String {
+        if model.isOnBreak { return "BREAK RUNNING" }
+        return model.breaksRemaining == 1 ? "BREAK LEFT" : "BREAKS LEFT"
+    }
 
-            if model.isCoolingDown {
-                Text("Breaks are spaced out so you can't take them back to back.")
-                    .font(.caption)
-                    .foregroundColor(Theme.muted)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 6)
-            }
+    private var startBreakButton: some View {
+        Button {
+            model.startBreak()
+        } label: {
+            Text(startButtonTitle)
+                .font(.system(size: 13, weight: .bold))
+                .monospacedDigit()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    model.canStartBreak ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.white.opacity(0.07)),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+                .foregroundColor(model.canStartBreak
+                                 ? Color(red: 0.357, green: 0.235, blue: 0.878)
+                                 : Theme.faint)
+        }
+        .disabled(!model.canStartBreak)
+    }
+
+    private var endBreakButton: some View {
+        Button(role: .destructive) {
+            model.endBreakEarly()
+        } label: {
+            Text("End break now")
+                .font(.system(size: 13, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    Color.white.opacity(0.16),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+                .foregroundColor(.white.opacity(0.85))
         }
     }
 
@@ -237,23 +259,59 @@ struct HomeView: View {
         return "Start \(model.settings.breakMinutes)-minute break"
     }
 
-    private func valueRow(_ title: String, _ value: String) -> some View {
-        HStack(spacing: 6) {
+    // MARK: - Budget rows
+
+    private var budgetRows: some View {
+        VStack(spacing: 0) {
+            // A second route into settings, right next to the numbers it changes —
+            // the gear alone makes you go looking for it.
+            NavigationLink {
+                SettingsView()
+            } label: {
+                valueRow("Each break lasts", "\(model.settings.breakMinutes) min", chevron: true)
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(Theme.hairline)
+            valueRow("Breaks per day", "\(model.settings.breaksPerDay)")
+
+            Divider().overlay(Theme.hairline)
+            valueRow("Wait between breaks", "\(model.settings.cooldownMinutes) min")
+        }
+        .padding(.horizontal, 16)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func valueRow(_ title: String, _ value: String, chevron showChevron: Bool = false) -> some View {
+        HStack(spacing: 8) {
             Text(title)
+                .font(.system(size: 13.5))
                 .foregroundColor(Theme.muted)
             Spacer()
             Text(value)
-                .font(.headline.monospacedDigit())
+                .font(.system(size: 14, weight: .semibold))
+                .monospacedDigit()
+            if showChevron { chevron }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 11)
+        .contentShape(Rectangle())
     }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundColor(Theme.faint)
+    }
+
+    // MARK: - Footer
 
     private var footnote: some View {
         Text("Breaks reset at midnight. Tap the gear to change how many you get and how long they last. You can also start one straight from the block screen without opening ScreenBlock.")
-            .font(.caption)
-            .foregroundColor(Theme.muted)
+            .font(.system(size: 11))
+            .foregroundColor(Theme.faint)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
+            .padding(.top, 4)
     }
 
     /// Which build is actually on the phone.
@@ -268,7 +326,7 @@ struct HomeView: View {
         let build = info?["CFBundleVersion"] as? String ?? "?"
 
         return Text("v\(version) (\(build))")
-            .font(.caption2.monospacedDigit())
-            .foregroundColor(Theme.muted)
+            .font(.system(size: 10).monospacedDigit())
+            .foregroundColor(Theme.faint)
     }
 }

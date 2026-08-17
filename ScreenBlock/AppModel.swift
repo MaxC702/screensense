@@ -56,6 +56,14 @@ final class AppModel: ObservableObject {
         BreakState.countdown(from: state.remainingCooldownSeconds(now: now))
     }
 
+    /// How much of the running break is left, 0...1, for the ring on the home
+    /// screen. Zero when no break is running, which draws no arc at all.
+    var breakProgress: Double {
+        let total = Double(settings.breakMinutes * 60)
+        guard total > 0 else { return 0 }
+        return min(1, max(0, state.remainingBreakSeconds(now: now) / total))
+    }
+
     // MARK: - Authorization
 
     /// `.individual` asks the current user to authorize restricting *their own*

@@ -6,21 +6,26 @@
 <title>ScreenBlock UI Preview</title>
 <style>
   :root{
-    --bg:#0a0d14;        /* Theme.background 0.04,0.05,0.08 */
-    --card:#171a24;      /* Theme.card       0.09,0.10,0.14 */
-    --accent:#4a8cff;    /* Theme.accent     0.29,0.55,1.0  */
+    --bg:#0b0912;        /* Theme.background */
+    --card:#17141f;      /* Theme.card       */
+    --card2:#1d1927;     /* Theme.cardRaised */
+    --violet:#7c5cff;    /* Theme.accent     */
+    --blue:#4a8cff;      /* Theme.accentEnd  */
     --muted:rgba(255,255,255,.55);
-    --hair:rgba(255,255,255,.08);
-    --page:#06080d;
+    --faint:rgba(255,255,255,.35);
+    --hair:rgba(255,255,255,.07);
+    --page:#070610;
     --sf:-apple-system,"SF Pro Text","SF Pro Display","Helvetica Neue",sans-serif;
+    --display:"Avenir Next","Avenir",-apple-system,"Helvetica Neue",sans-serif;
     --round:ui-rounded,"SF Pro Rounded",-apple-system,sans-serif;
+    --grad:linear-gradient(135deg,#7c5cff 0%,#4a8cff 100%);
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--page);color:#fff;font-family:var(--sf);-webkit-font-smoothing:antialiased}
   header.page{padding:40px 32px 8px;max-width:1400px;margin:0 auto}
   header.page h1{font-size:26px;font-weight:700;margin:0 0 6px;letter-spacing:-.02em}
   header.page p{margin:0;color:var(--muted);font-size:14px;max-width:70ch;line-height:1.5}
-  header.page code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#9fbcff}
+  header.page code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#b8a5ff}
   .grid{display:flex;flex-wrap:wrap;gap:44px 40px;padding:32px;max-width:1400px;margin:0 auto;align-items:flex-start}
   figure{margin:0;width:320px}
   figcaption{margin-top:14px;font-size:13px;color:var(--muted);line-height:1.45}
@@ -28,7 +33,7 @@
 
   /* ---- device ---- */
   .phone{width:320px;height:660px;border-radius:44px;background:#000;padding:9px;
-         box-shadow:0 0 0 1px rgba(255,255,255,.09),0 24px 60px rgba(0,0,0,.65)}
+         box-shadow:0 0 0 1px rgba(255,255,255,.09),0 24px 60px rgba(0,0,0,.7)}
   .screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;
           background:var(--bg);display:flex;flex-direction:column}
   .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:88px;height:24px;
@@ -38,59 +43,77 @@
   .statusbar .rt{display:flex;gap:5px;align-items:center;opacity:.9}
   .body{flex:1;overflow:hidden;position:relative}
   .scroll{height:100%;overflow:hidden;padding:0 17px 17px}
-  .stack{display:flex;flex-direction:column;gap:15px}
+  .stack{display:flex;flex-direction:column;gap:13px}
 
-  /* ---- primitives mirroring Card / Theme ---- */
-  .card{background:var(--card);border-radius:17px;padding:17px;display:flex;flex-direction:column;gap:13px}
-  .hd{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600}
+  /* ---- primitives ---- */
+  .card{background:var(--card);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .seclabel{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--faint);
+            text-transform:uppercase;padding:6px 4px 0}
+  .tile{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto;
+        background:rgba(124,92,255,.16)}
+  .hd{display:flex;align-items:center;gap:10px}
+  .hd .t{font-family:var(--display);font-size:15px;font-weight:500}
+  .hd .s{font-size:11.5px;color:var(--muted);margin-top:1px}
   .sub{font-size:12.5px;color:var(--muted);line-height:1.35}
   .cap{font-size:11px;color:var(--muted);line-height:1.4}
-  .btn{border-radius:11px;text-align:center;font-weight:700;font-size:12.5px;padding:10px 0}
-  .btn.soft{background:rgba(74,140,255,.18);color:var(--accent)}
-  .btn.solid{background:var(--accent);color:#fff;font-size:14px;padding:12px 0;border-radius:12px}
-  .btn.off{background:rgba(255,255,255,.1);color:var(--muted);font-size:14px;padding:12px 0;border-radius:12px;
-           font-variant-numeric:tabular-nums}
-  .btn.danger{background:rgba(255,69,58,.15);color:#ff453a}
-  .row{display:flex;align-items:center;gap:6px;padding:7px 0;font-size:13.5px}
+  .pill{font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:999px;
+        background:rgba(255,255,255,.14);letter-spacing:.02em}
+  .btn{border-radius:14px;text-align:center;font-weight:700;font-size:13px;padding:11px 0}
+  .btn.soft{background:rgba(124,92,255,.16);color:#b8a5ff}
+  .btn.grad{background:var(--grad);color:#fff;box-shadow:0 8px 20px rgba(124,92,255,.35)}
+  .btn.white{background:#fff;color:#5b3ce0}
+  .btn.frost{background:rgba(255,255,255,.16);color:rgba(255,255,255,.75)}
+  .btn.off{background:rgba(255,255,255,.07);color:var(--faint)}
+  .btn.danger{background:rgba(255,86,86,.16);color:#ff7a7a}
+  .row{display:flex;align-items:center;gap:8px;padding:11px 0;font-size:13.5px}
   .row .lbl{color:var(--muted)}
   .row .val{margin-left:auto;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
   .hr{height:1px;background:var(--hair)}
-  .pips{display:flex;gap:5px;margin-left:auto}
-  .pip{width:9px;height:9px;border-radius:50%;background:var(--accent)}
-  .pip.spent{background:rgba(255,255,255,.15)}
-  .toggle{width:47px;height:29px;border-radius:15px;background:var(--accent);position:relative;flex:0 0 auto}
-  .toggle.off{background:rgba(255,255,255,.16)}
+  .toggle{width:47px;height:29px;border-radius:15px;position:relative;flex:0 0 auto;background:var(--grad)}
+  .toggle.off{background:rgba(255,255,255,.14)}
   .toggle::after{content:"";position:absolute;top:2px;left:20px;width:25px;height:25px;border-radius:50%;
                  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
   .toggle.off::after{left:2px}
-  .banner{display:flex;align-items:center;gap:7px;background:rgba(255,159,10,.12);color:#ff9f0a;
-          border-radius:11px;padding:10px;font-size:11px;font-weight:500;line-height:1.3}
-  .title{font-size:29px;font-weight:700;letter-spacing:-.02em}
-  .gear{width:38px;height:38px;border-radius:50%;background:var(--card);display:grid;place-items:center;margin-left:auto}
-  .countdown{font-family:var(--round);font-size:45px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;
-             letter-spacing:-.01em}
-  .big{font-family:var(--round);font-size:38px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
-  .foot{font-size:11px;color:var(--muted);text-align:center;line-height:1.45;padding:0 6px}
-  svg{display:block}
-  .seg{display:flex;background:rgba(255,255,255,.08);border-radius:9px;padding:2px}
-  .seg span{flex:1;text-align:center;font-size:12.5px;font-weight:600;padding:6px 0;border-radius:7px;color:#fff}
-  .seg span.on{background:#5b5f6b;box-shadow:0 1px 2px rgba(0,0,0,.4)}
-  .slider{position:relative;height:26px;display:flex;align-items:center}
-  .slider .track{height:4px;border-radius:2px;background:rgba(255,255,255,.18);width:100%}
-  .slider .fill{position:absolute;height:4px;border-radius:2px;background:var(--accent);left:0}
-  .slider .knob{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;
-                box-shadow:0 1px 4px rgba(0,0,0,.5);transform:translateX(-50%)}
-  .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+  .banner{display:flex;align-items:center;gap:8px;background:rgba(255,159,10,.1);color:#ffb340;
+          border-radius:14px;padding:11px;font-size:11px;font-weight:500;line-height:1.3}
+  .title{font-family:var(--display);font-size:28px;font-weight:400;letter-spacing:.01em}
+  .gear{width:38px;height:38px;border-radius:13px;background:var(--card);display:grid;place-items:center;margin-left:auto}
+  .dot{width:7px;height:7px;border-radius:50%;background:#32d74b;margin-right:6px;display:inline-block}
+  .dot.off{background:var(--faint)}
+
+  /* ---- hero (breaks) ---- */
+  .hero{border-radius:26px;padding:16px;display:flex;flex-direction:column;gap:14px;background:var(--card)}
+  .hero.live{background:var(--grad);box-shadow:0 14px 34px rgba(124,92,255,.32)}
+  .hero-top{display:flex;align-items:center}
+  .hero-top .t{font-family:var(--display);font-size:15px;font-weight:500}
+  .ring{position:relative;width:134px;height:134px;margin:0 auto}
+  .ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .big{font-family:var(--display);font-size:38px;font-weight:200;line-height:1;font-variant-numeric:tabular-nums}
+  .ring .big.time{font-size:31px}
+  .ring .cap2{font-size:9.5px;color:rgba(255,255,255,.7);margin-top:5px;letter-spacing:.03em}
+  .foot{font-size:11px;color:var(--faint);text-align:center;line-height:1.45;padding:0 6px}
+
   .navbar{height:42px;display:flex;align-items:center;justify-content:center;position:relative;
-          font-size:15px;font-weight:600;border-bottom:1px solid var(--hair);flex:0 0 auto}
-  .navbar .back{position:absolute;left:14px;display:flex;align-items:center;gap:3px;color:var(--accent);font-size:14px;font-weight:400}
+          font-size:15px;font-weight:600;flex:0 0 auto}
+  .navbar .back{position:absolute;left:14px;display:flex;align-items:center;gap:3px;color:#b8a5ff;font-size:14px;font-weight:400}
   .center{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
-          gap:18px;padding:24px;text-align:center}
+          gap:18px;padding:26px;text-align:center}
   .shield{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:26px;
-          text-align:center;background:rgba(10,13,20,.92)}
+          text-align:center;background:rgba(11,9,18,.93);position:relative;z-index:2}
   .shield-bg{position:absolute;inset:0;background:
-      radial-gradient(circle at 30% 25%,#2b3a86 0,transparent 55%),
-      radial-gradient(circle at 75% 70%,#7a2f6a 0,transparent 55%),#1a1f33;filter:blur(26px)}
+      radial-gradient(circle at 28% 22%,#5b3ce0 0,transparent 55%),
+      radial-gradient(circle at 76% 72%,#2f5bd0 0,transparent 55%),#141024;filter:blur(30px)}
+  .seg{display:flex;background:rgba(255,255,255,.07);border-radius:12px;padding:3px}
+  .seg span{flex:1;text-align:center;font-size:12.5px;font-weight:600;padding:7px 0;border-radius:9px;color:var(--muted)}
+  .seg span.on{background:var(--grad);color:#fff}
+  .slider{position:relative;height:26px;display:flex;align-items:center}
+  .slider .track{height:5px;border-radius:3px;background:rgba(255,255,255,.1);width:100%}
+  .slider .fill{position:absolute;height:5px;border-radius:3px;background:var(--grad);left:0}
+  .slider .knob{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;
+                box-shadow:0 2px 8px rgba(0,0,0,.5);transform:translateX(-50%)}
+  .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--faint)}
+  .big{font-family:var(--round);font-size:38px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+  svg{display:block}
 </style>
 </head>
 <body>
@@ -98,112 +121,123 @@
 <header class="page">
   <h1>ScreenBlock — UI preview</h1>
   <p>Static HTML rendering of the SwiftUI screens in <code>ScreenBlock/Views/</code>, using <code>Theme</code>
-     from <code>RootView.swift</code> (bg <code>#0a0d14</code>, card <code>#171a24</code>, accent <code>#4a8cff</code>).
-     Copy, layout and state logic are taken from the source; SF Symbols are approximated with inline SVG, so
-     glyph shapes and system controls (segmented picker, slider, toggle, shield sheet) are close but not pixel-exact.
-     For the real thing, run the Simulator target — commit <code>45ce58c</code> added the stub path for that.</p>
+     from <code>RootView.swift</code> (bg <code>#0b0912</code>, card <code>#17141f</code>, accent gradient
+     <code>#7c5cff → #4a8cff</code>). Copy and state logic are taken from the source; SF Symbols are
+     approximated with inline SVG, so glyph shapes and system controls (segmented picker, slider, toggle,
+     shield sheet) are close but not pixel-exact. For the real thing, run the app on a device.</p>
 </header>
 
 <div class="grid" id="grid"></div>
 
 <script>
-/* ---------- tiny SF-Symbol-ish icon set ---------- */
+/* ---------- icons ---------- */
 const I = {
   gear:`<svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5zm9 3.5c0-.6-.05-1.18-.15-1.74l2.03-1.5-2-3.46-2.35.98a9.1 9.1 0 0 0-3-1.74L15.2 1.5h-4l-.33 2.54a9.1 9.1 0 0 0-3 1.74L5.5 4.8l-2 3.46 2.03 1.5a9.4 9.4 0 0 0 0 3.48L3.5 14.74l2 3.46 2.37-.98a9.1 9.1 0 0 0 3 1.74l.33 2.54h4l.33-2.54a9.1 9.1 0 0 0 3-1.74l2.35.98 2-3.46-2.03-1.5c.1-.56.15-1.14.15-1.74z"/></svg>`,
-  grid:`<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><rect x="2.5" y="2.5" width="8.5" height="8.5" rx="2.4"/><rect x="13" y="2.5" width="8.5" height="8.5" rx="2.4"/><rect x="2.5" y="13" width="8.5" height="8.5" rx="2.4"/><rect x="13" y="13" width="8.5" height="8.5" rx="2.4"/></svg>`,
+  grid:`<svg width="15" height="15" viewBox="0 0 24 24" fill="#b8a5ff"><rect x="2.5" y="2.5" width="8.5" height="8.5" rx="2.4"/><rect x="13" y="2.5" width="8.5" height="8.5" rx="2.4"/><rect x="2.5" y="13" width="8.5" height="8.5" rx="2.4"/><rect x="13" y="13" width="8.5" height="8.5" rx="2.4"/></svg>`,
+  lock:`<svg width="16" height="16" viewBox="0 0 24 24" fill="#b8a5ff"><path d="M12 1.3 3.4 4.6v6.1c0 5.3 3.6 10.2 8.6 11.9 5-1.7 8.6-6.6 8.6-11.9V4.6zM12 7a2.4 2.4 0 0 1 2.4 2.4v1h.5v5.3H9.1v-5.3h.5v-1A2.4 2.4 0 0 1 12 7zm0 1.5a.9.9 0 0 0-.9.9v1h1.8v-1a.9.9 0 0 0-.9-.9z"/></svg>`,
   cup:`<svg width="16" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M3 7h13v6a5.5 5.5 0 0 1-11 0V7zm14 1h1.8a2.7 2.7 0 0 1 0 5.4H17V8zm-2 9.5H4a1 1 0 0 0 0 2h11a1 1 0 0 0 0-2z"/></svg>`,
-  warn:`<svg width="14" height="14" viewBox="0 0 24 24" fill="#ff9f0a"><path d="M12 2.6 23 21H1L12 2.6zm-1.1 6.2v6.1h2.2V8.8h-2.2zm0 7.6v2.3h2.2v-2.3h-2.2z"/></svg>`,
-  info:`<svg width="12" height="12" viewBox="0 0 24 24" fill="#ff9f0a"><path d="M12 1.8A10.2 10.2 0 1 0 12 22.2 10.2 10.2 0 0 0 12 1.8zm-1.1 4.4h2.2v2.3h-2.2V6.2zm0 4h2.2v7.6h-2.2v-7.6z"/></svg>`,
-  hash:`<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M8.4 2 7.6 7H3.4l-.3 2.4h4.2l-.7 5H2.4L2.1 16.8h4.1L5.5 22h2.4l.7-5.2h4.3L12.2 22h2.4l.7-5.2h4.3l.3-2.4h-4.3l.7-5h4.3l.3-2.4h-4.3L21.5 2h-2.4l-.7 5h-4.3l.7-5h-2.4l-.7 5H7.6zm.9 7.4h4.3l-.7 5H8.6z"/></svg>`,
-  timer:`<svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M9 1.2h6v2.1H9zM12 4.6a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4.2v5.2l3.5 2.1-1 1.7-4.5-2.7V8.8z"/></svg>`,
-  hourglass:`<svg width="14" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M5 2h14v2.2c0 2.9-1.8 5.4-4.4 6.4v.8c2.6 1 4.4 3.5 4.4 6.4V20H5v-2.2c0-2.9 1.8-5.4 4.4-6.4v-.8C6.8 9.6 5 7.1 5 4.2z"/></svg>`,
-  lock:`<svg width="56" height="56" viewBox="0 0 24 24" fill="#4a8cff"><path d="M12 1.3 3.4 4.6v6.1c0 5.3 3.6 10.2 8.6 11.9 5-1.7 8.6-6.6 8.6-11.9V4.6zM12 7a2.4 2.4 0 0 1 2.4 2.4v1h.5v5.3H9.1v-5.3h.5v-1A2.4 2.4 0 0 1 12 7zm0 1.5a.9.9 0 0 0-.9.9v1h1.8v-1a.9.9 0 0 0-.9-.9z"/></svg>`,
-  // Five vertical columns, thumb included — it starts lower and is a touch
-  // wider, and its left edge continues straight down as the palm's left edge.
-  // The palm spans the full width and ends in a semicircle; the slit between
-  // thumb and index closes where that full-width part begins (the web).
-  hand:`<svg width="30" height="50" viewBox="0 2 30 50" fill="#fff">
-          <rect x="0.6"  y="18"  width="5.6"  height="16" rx="2.8"/>
-          <rect x="6.8"  y="6.5" width="5.2"  height="27" rx="2.6"/>
-          <rect x="12.6" y="4"   width="5.2"  height="29" rx="2.6"/>
-          <rect x="18.4" y="7.5" width="5.2"  height="26" rx="2.6"/>
-          <rect x="24.2" y="13"  width="5.2"  height="20" rx="2.6"/>
-          <rect x="6.8"  y="26"  width="22.6" height="10"/>
-          <path d="M0.6 30H29.4v5.6a14.4 14.4 0 0 1-28.8 0z"/>
-        </svg>`,
-  chev:`<svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 1 6.5 6 1.5 11"/></svg>`,
-  chevBack:`<svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="#4a8cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 1 1.5 6 6.5 11"/></svg>`,
+  warn:`<svg width="14" height="14" viewBox="0 0 24 24" fill="#ffb340"><path d="M12 2.6 23 21H1L12 2.6zm-1.1 6.2v6.1h2.2V8.8h-2.2zm0 7.6v2.3h2.2v-2.3h-2.2z"/></svg>`,
+  info:`<svg width="12" height="12" viewBox="0 0 24 24" fill="#ffb340"><path d="M12 1.8A10.2 10.2 0 1 0 12 22.2 10.2 10.2 0 0 0 12 1.8zm-1.1 4.4h2.2v2.3h-2.2V6.2zm0 4h2.2v7.6h-2.2v-7.6z"/></svg>`,
+  hash:`<svg width="15" height="15" viewBox="0 0 24 24" fill="#b8a5ff"><path d="M8.4 2 7.6 7H3.4l-.3 2.4h4.2l-.7 5H2.4L2.1 16.8h4.1L5.5 22h2.4l.7-5.2h4.3L12.2 22h2.4l.7-5.2h4.3l.3-2.4h-4.3l.7-5h4.3l.3-2.4h-4.3L21.5 2h-2.4l-.7 5h-4.3l.7-5h-2.4l-.7 5H7.6zm.9 7.4h4.3l-.7 5H8.6z"/></svg>`,
+  timer:`<svg width="15" height="15" viewBox="0 0 24 24" fill="#b8a5ff"><path d="M9 1.2h6v2.1H9zM12 4.6a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm1 4.2v5.2l3.5 2.1-1 1.7-4.5-2.7V8.8z"/></svg>`,
+  hourglass:`<svg width="14" height="15" viewBox="0 0 24 24" fill="#b8a5ff"><path d="M5 2h14v2.2c0 2.9-1.8 5.4-4.4 6.4v.8c2.6 1 4.4 3.5 4.4 6.4V20H5v-2.2c0-2.9 1.8-5.4 4.4-6.4v-.8C6.8 9.6 5 7.1 5 4.2z"/></svg>`,
+  shieldBig:`<svg width="62" height="62" viewBox="0 0 24 24"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#4a8cff"/></linearGradient></defs><path fill="url(#g1)" d="M12 1.3 3.4 4.6v6.1c0 5.3 3.6 10.2 8.6 11.9 5-1.7 8.6-6.6 8.6-11.9V4.6zM12 7a2.4 2.4 0 0 1 2.4 2.4v1h.5v5.3H9.1v-5.3h.5v-1A2.4 2.4 0 0 1 12 7zm0 1.5a.9.9 0 0 0-.9.9v1h1.8v-1a.9.9 0 0 0-.9-.9z"/></svg>`,
+  hand:`<svg width="30" height="50" viewBox="0 2 30 50" fill="#fff"><rect x="0.6" y="18" width="5.6" height="16" rx="2.8"/><rect x="6.8" y="6.5" width="5.2" height="27" rx="2.6"/><rect x="12.6" y="4" width="5.2" height="29" rx="2.6"/><rect x="18.4" y="7.5" width="5.2" height="26" rx="2.6"/><rect x="24.2" y="13" width="5.2" height="20" rx="2.6"/><rect x="6.8" y="26" width="22.6" height="10"/><path d="M0.6 30H29.4v5.6a14.4 14.4 0 0 1-28.8 0z"/></svg>`,
+  chev:`<svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 1 6.5 6 1.5 11"/></svg>`,
+  chevBack:`<svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="#b8a5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 1 1.5 6 6.5 11"/></svg>`,
   wifi:`<svg width="15" height="11" viewBox="0 0 16 12" fill="#fff"><path d="M8 11.2 5.6 8.6a3.6 3.6 0 0 1 4.8 0zM8 6.3c-1.5 0-2.9.6-3.9 1.6L2.6 6.3A7.7 7.7 0 0 1 8 4.1c2.1 0 4 .8 5.4 2.2l-1.5 1.6A5.4 5.4 0 0 0 8 6.3zM8 1.6c-2.7 0-5.2 1.1-7 2.8L-.4 3A11.6 11.6 0 0 1 8-.4c3.3 0 6.3 1.3 8.4 3.4L15 4.4A9.8 9.8 0 0 0 8 1.6z"/></svg>`,
   batt:`<svg width="24" height="11" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="3" stroke="rgba(255,255,255,.5)"/><rect x="2.8" y="2.8" width="16" height="6.4" rx="1.6" fill="#fff"/><path d="M23.5 4.4v3.2a2 2 0 0 0 0-3.2z" fill="rgba(255,255,255,.5)"/></svg>`,
 };
-
 const statusbar = `<div class="statusbar"><span>9:41</span><span class="rt">${I.wifi}${I.batt}</span></div>`;
 const island = `<div class="island"></div>`;
 
-function pips(total, left){
-  return `<div class="pips">${Array.from({length:total},(_,i)=>
-    `<div class="pip${i<left?'':' spent'}"></div>`).join('')}</div>`;
-}
-function slider(pct){
-  return `<div class="slider"><div class="track"></div><div class="fill" style="width:${pct}%"></div>
-          <div class="knob" style="left:${pct}%"></div></div>`;
+/* Ring: fraction 0..1, `onGradient` flips the track/stroke for the gradient card. */
+function ring(fraction, inner, onGradient){
+  const r = 55, c = 2 * Math.PI * r, off = c * (1 - fraction);
+  const track = onGradient ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.08)';
+  const stroke = onGradient ? '#fff' : 'url(#ringGrad)';
+  return `<div class="ring">
+    <svg width="134" height="134" viewBox="0 0 134 134">
+      <defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#4a8cff"/></linearGradient></defs>
+      <circle cx="67" cy="67" r="${r}" fill="none" stroke="${track}" stroke-width="10"/>
+      <circle cx="67" cy="67" r="${r}" fill="none" stroke="${stroke}" stroke-width="10"
+              stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
+              transform="rotate(-90 67 67)"/>
+    </svg>
+    <div class="val">${inner}</div>
+  </div>`;
 }
 
 /* ---------- HomeView ---------- */
 function home(o){
   const blocked = o.blockedCount > 0;
+  const live = o.canStart || o.onBreak;          // gradient only when there's something to do
+  const frac = o.onBreak ? o.progress : o.remaining / o.perDay;
+
+  const inner = o.onBreak
+    ? `<div class="big time">${o.countdown}</div><div class="cap2">BREAK RUNNING</div>`
+    : `<div class="big">${o.remaining}</div><div class="cap2">${o.remaining === 1 ? 'BREAK LEFT' : 'BREAKS LEFT'}</div>`;
+
   return `
   ${island}${statusbar}
   <div class="body"><div class="scroll"><div class="stack">
 
-    <div style="display:flex;align-items:flex-start;gap:8px;padding-top:6px">
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 2px 2px">
       <div>
         <div class="title">ScreenBlock</div>
-        <div class="sub" style="font-size:12px;margin-top:2px">Blocking is ${o.blocking?'on':'off'}</div>
+        <div class="sub" style="font-size:12px;margin-top:3px">
+          <span class="dot${o.blocking?'':' off'}"></span>${o.blocking?'Blocking is on':'Blocking is off'}</div>
       </div>
       <div class="gear">${I.gear}</div>
     </div>
 
     ${o.simulator?`<div class="banner">${I.warn}<span>Simulator preview — nothing is actually blocked.</span></div>`:''}
 
+    <div class="seclabel">Protection</div>
+
     <div class="card">
-      <div class="hd">${I.grid} Blocked apps</div>
-      <div class="sub">${blocked
-        ? `${o.blockedCount} selected — apps, categories and sites.`
-        : `Nothing selected yet.`}</div>
+      <div class="hd">
+        <div class="tile">${I.grid}</div>
+        <div><div class="t">Blocked apps</div>
+          <div class="s">${blocked ? `${o.blockedCount} apps, categories and sites` : 'Nothing selected yet'}</div></div>
+        ${I.chev}
+      </div>
       <div class="btn soft">${blocked?'Edit selection':'Choose apps'}</div>
     </div>
 
     <div class="card">
-      <div style="display:flex;align-items:center;gap:10px;opacity:${blocked?1:.45}">
-        <div>
-          <div class="hd">Block these apps</div>
-          <div class="cap" style="margin-top:2px">Stays on until you spend a break.</div>
-        </div>
+      <div class="hd" style="opacity:${blocked?1:.45}">
+        <div class="tile">${I.lock}</div>
+        <div><div class="t">Block these apps</div>
+          <div class="s">Stays on until you spend a break</div></div>
         <div style="margin-left:auto"><div class="toggle${o.blocking?'':' off'}"></div></div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="hd">${I.cup} Breaks today ${pips(o.perDay,o.remaining)}</div>
-      ${o.onBreak ? `
-        <div style="display:flex;flex-direction:column;gap:11px;align-items:stretch">
-          <div class="countdown">${o.countdown}</div>
-          <div class="cap" style="text-align:center">Break running</div>
-          <div class="btn danger">End break now</div>
-        </div>`
-      : `
-        <div>
-          <div class="row"><span class="lbl">Each break lasts</span>
-            <span class="val">${o.minutes} min</span>${I.chev}</div>
-          <div class="hr"></div>
-          <div class="row"><span class="lbl">Breaks per day</span><span class="val">${o.perDay}</span></div>
-          <div class="hr"></div>
-          <div class="row"><span class="lbl">Wait between breaks</span><span class="val">${o.cooldown} min</span></div>
-          <div class="${o.canStart?'btn solid':'btn off'}" style="margin-top:7px">${o.startLabel}</div>
-          ${o.coolingDown?`<div class="cap" style="text-align:center;margin-top:6px">Breaks are spaced out so you can't take them back to back.</div>`:''}
-        </div>`}
+    <div class="seclabel">Breaks</div>
+
+    <div class="hero${live?' live':''}">
+      <div class="hero-top">
+        <span class="t">${o.onBreak?'On a break':'Breaks today'}</span>
+        <span class="pill" style="margin-left:auto">${o.remaining} of ${o.perDay}</span>
+      </div>
+      ${ring(frac, inner, live)}
+      ${o.onBreak
+        ? `<div class="btn frost">End break now</div>`
+        : `<div class="btn ${o.canStart?'white':'off'}">${o.startLabel}</div>
+           ${o.coolingDown?`<div class="cap" style="text-align:center">Breaks are spaced out so you can't take them back to back.</div>`:''}`}
     </div>
+
+    ${o.onBreak?'':`
+    <div class="card" style="gap:0">
+      <div class="row"><span class="lbl">Each break lasts</span>
+        <span class="val">${o.minutes} min</span>${I.chev}</div>
+      <div class="hr"></div>
+      <div class="row"><span class="lbl">Breaks per day</span><span class="val">${o.perDay}</span></div>
+      <div class="hr"></div>
+      <div class="row"><span class="lbl">Wait between breaks</span><span class="val">${o.cooldown} min</span></div>
+    </div>`}
 
     <div class="foot">Breaks reset at midnight. Tap the gear to change how many you get and how long they last. You can also start one straight from the block screen without opening ScreenBlock.</div>
     <div class="foot" style="font-size:10px">v1.0 (2)</div>
@@ -212,47 +246,44 @@ function home(o){
 
 /* ---------- SettingsView ---------- */
 function settings(o){
-  const lenPct = (o.minutes-1)/29*100;
-  const coolPct = (o.cooldown-5)/55*100;
+  const lenPct = (o.minutes-1)/29*100, coolPct = (o.cooldown-5)/55*100;
   return `
   ${island}${statusbar}
   <div class="navbar"><span class="back">${I.chevBack} Back</span>Breaks</div>
-  <div class="body"><div class="scroll" style="padding-top:15px"><div class="stack">
+  <div class="body"><div class="scroll" style="padding-top:8px"><div class="stack">
 
     <div class="card">
-      <div class="hd">${I.hash} Breaks per day</div>
+      <div class="hd"><div class="tile">${I.hash}</div><div><div class="t">Breaks per day</div></div></div>
       <div class="seg">${[1,2,3,4,5].map(n=>`<span class="${n===o.perDay?'on':''}">${n}</span>`).join('')}</div>
-      ${o.overspent?`<div class="cap" style="color:#ff9f0a;display:flex;gap:6px;align-items:flex-start">${I.info}<span>You've already used ${o.used} today — this takes effect tomorrow.</span></div>`:''}
+      ${o.overspent?`<div class="cap" style="color:#ffb340;display:flex;gap:6px;align-items:flex-start">${I.info}<span>You've already used ${o.used} today — this takes effect tomorrow.</span></div>`:''}
     </div>
 
     <div class="card">
-      <div class="hd">${I.timer} Break length</div>
-      <div style="display:flex;align-items:baseline;gap:6px">
-        <span class="big">${o.minutes}</span>
-        <span style="font-size:14px;font-weight:600;color:var(--muted)">${o.minutes===1?'minute':'minutes'}</span>
-      </div>
+      <div class="hd"><div class="tile">${I.timer}</div><div><div class="t">Break length</div></div>
+        <span class="pill" style="margin-left:auto">${o.minutes} min</span></div>
       ${slider(lenPct)}
       <div class="ends"><span>1 min</span><span>30 min</span></div>
     </div>
 
     <div class="card">
-      <div class="hd">${I.hourglass} Wait between breaks</div>
-      <div class="sub">How long you have to wait after one break before the next can start.</div>
-      <div style="display:flex;align-items:baseline;gap:6px">
-        <span class="big">${o.cooldown}</span>
-        <span style="font-size:14px;font-weight:600;color:var(--muted)">minutes</span>
-      </div>
+      <div class="hd"><div class="tile">${I.hourglass}</div><div><div class="t">Wait between breaks</div>
+        <div class="s">Before the next one can start</div></div>
+        <span class="pill" style="margin-left:auto">${o.cooldown} min</span></div>
       ${slider(coolPct)}
       <div class="ends"><span>5 min</span><span>1 hour</span></div>
-      ${o.coolingDown?`<div class="cap" style="color:#ff9f0a;display:flex;gap:6px;align-items:flex-start">${I.info}<span>Cooling down now — ${o.cooldownText} left. Changes apply to the next one.</span></div>`:''}
+      ${o.coolingDown?`<div class="cap" style="color:#ffb340;display:flex;gap:6px;align-items:flex-start">${I.info}<span>Cooling down now — ${o.cooldownText} left. Changes apply to the next one.</span></div>`:''}
     </div>
 
-    <div class="cap" style="padding:0 4px;display:flex;flex-direction:column;gap:9px">
-      <span>A break counts down while you're actually using the blocked apps, so time spent with your phone in your pocket doesn't burn it.</span>
-      <span>The wait between breaks runs on the clock instead, so it can't be waited out inside a blocked app.</span>
+    <div class="cap" style="padding:0 6px;display:flex;flex-direction:column;gap:9px">
+      <span>A break runs on the clock. Start a 5-minute break and the block comes back 5 minutes later, whether or not you spent them in the app.</span>
+      <span>The wait between breaks is the same, so it can't be run down from inside a blocked app either.</span>
       <span>Breaks reset at midnight. Ending one early doesn't give it back, and it still starts the wait.</span>
     </div>
   </div></div></div>`;
+}
+function slider(pct){
+  return `<div class="slider"><div class="track"></div><div class="fill" style="width:${pct}%"></div>
+          <div class="knob" style="left:${pct}%"></div></div>`;
 }
 
 /* ---------- PermissionView ---------- */
@@ -261,28 +292,28 @@ function permission(denied){
   ${island}${statusbar}
   <div class="body"><div class="center">
     <div style="flex:1"></div>
-    ${I.lock}
-    <div style="display:flex;flex-direction:column;gap:9px">
-      <div style="font-size:20px;font-weight:700;line-height:1.25">ScreenBlock needs Screen Time access</div>
+    ${I.shieldBig}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:21px;font-weight:700;line-height:1.25">ScreenBlock needs Screen Time access</div>
       <div class="sub">iOS handles the blocking itself. ScreenBlock never sees which apps you pick — it only receives anonymous handles from the system.</div>
     </div>
     <div style="flex:1"></div>
-    ${denied?`<div style="font-size:11.5px;color:#ff9f0a;line-height:1.4">Access was denied. Open Settings › Screen Time to allow it, then come back.</div>`:''}
-    <div class="btn solid" style="width:100%;border-radius:14px;padding:14px 0">Grant access</div>
+    ${denied?`<div style="font-size:11.5px;color:#ffb340;line-height:1.4">Access was denied. Open Settings › Screen Time to allow it, then come back.</div>`:''}
+    <div class="btn grad" style="width:100%;padding:15px 0;border-radius:17px;font-size:15px">Grant access</div>
   </div></div>`;
 }
 
-/* ---------- ShieldConfiguration (system-rendered) ---------- */
+/* ---------- ShieldConfiguration ---------- */
 function shield(o){
   return `
   ${island}
   <div class="shield-bg"></div>
-  <div class="body" style="z-index:2"><div class="shield">
+  <div class="body"><div class="shield">
     ${I.hand}
     <div style="font-size:22px;font-weight:700">${o.title}</div>
     <div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.4">${o.subtitle}</div>
     <div style="width:100%;display:flex;flex-direction:column;gap:9px;margin-top:8px">
-      <div class="${o.canStart?'btn solid':'btn off'}" style="border-radius:22px;padding:13px 0">${o.primary}</div>
+      <div class="btn ${o.canStart?'grad':'frost'}" style="border-radius:22px;padding:13px 0">${o.primary}</div>
       <div style="text-align:center;font-size:14px;color:rgba(255,255,255,.75);padding:11px 0">Close</div>
     </div>
   </div></div>`;
@@ -294,25 +325,25 @@ const frames = [
     permission(false)],
   ["Permission denied", "Same screen with the <code>.denied</code> hint above the button.",
     permission(true)],
-  ["Home — nothing selected", "<code>HomeView</code> before any picker run: “Choose apps”, and the block toggle is disabled.",
+  ["Home — nothing selected", "Before any picker run. The hero stays flat because there is nothing to spend a break on yet.",
     home({blockedCount:0,blocking:false,simulator:false,perDay:3,remaining:3,minutes:5,cooldown:15,
-          onBreak:false,canStart:true,coolingDown:false,startLabel:"Start 5-minute break"})],
-  ["Home — idle, on Simulator", "Defaults (3 × 5 min, 15 min apart) with the Simulator banner from commit <code>45ce58c</code>.",
+          onBreak:false,canStart:false,coolingDown:false,startLabel:"Start 5-minute break"})],
+  ["Home — idle, on Simulator", "Defaults (3 × 5 min, 15 min apart). Gradient hero = a break is there to take.",
     home({blockedCount:12,blocking:true,simulator:true,perDay:3,remaining:3,minutes:5,cooldown:15,
           onBreak:false,canStart:true,coolingDown:false,startLabel:"Start 5-minute break"})],
-  ["Home — break running", "<code>isOnBreak</code>: usage countdown in rounded monospaced digits, one pip already spent.",
+  ["Home — break running", "The ring becomes the countdown; the settings rows drop away so nothing competes with it.",
     home({blockedCount:12,blocking:true,simulator:false,perDay:3,remaining:2,minutes:5,cooldown:15,
-          onBreak:true,countdown:"4:12"})],
-  ["Home — cooling down", "The disabled button doubles as the cooldown readout; wall-clock, so it ticks anywhere.",
+          onBreak:true,countdown:"4:12",progress:0.84})],
+  ["Home — cooling down", "Hero goes flat and the button carries the countdown, so a dead control still explains itself.",
     home({blockedCount:12,blocking:true,simulator:false,perDay:3,remaining:2,minutes:5,cooldown:15,
           onBreak:false,canStart:false,coolingDown:true,startLabel:"Next break in 12:30"})],
-  ["Home — budget spent", "All pips hollow; the button states why it's dead rather than just being grey.",
+  ["Home — budget spent", "Ring empty, hero flat, button inert until midnight.",
     home({blockedCount:12,blocking:true,simulator:false,perDay:3,remaining:0,minutes:5,cooldown:15,
           onBreak:false,canStart:false,coolingDown:false,startLabel:"No breaks left today"})],
-  ["Home — 5 × 20 min", "Pip row length tracks <code>breaksPerDay</code>, so the allowance is readable at a glance.",
+  ["Home — 5 × 20 min", "The ring scales to any allowance, where a row of dots stopped reading past four.",
     home({blockedCount:31,blocking:true,simulator:false,perDay:5,remaining:4,minutes:20,cooldown:30,
           onBreak:false,canStart:true,coolingDown:false,startLabel:"Start 20-minute break"})],
-  ["Settings", "<code>SettingsView</code> at defaults — segmented picker plus two sliders, writing through immediately.",
+  ["Settings", "Values move into pills in the header, so each card states its setting before you read the control.",
     settings({perDay:3,minutes:5,cooldown:15,overspent:false,coolingDown:false})],
   ["Settings — edge cases", "Allowance lowered below today's usage, and edited mid-cooldown; both warn instead of acting retroactively.",
     settings({perDay:2,minutes:12,cooldown:45,overspent:true,used:3,coolingDown:true,cooldownText:"12:30"})],

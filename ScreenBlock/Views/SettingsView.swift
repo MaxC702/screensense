@@ -11,13 +11,15 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 18) {
+            VStack(spacing: 13) {
                 breaksPerDayCard
                 breakLengthCard
                 cooldownCard
+                diagnosticsLink
                 explainer
             }
-            .padding(20)
+            .padding(.horizontal, 17)
+            .padding(.bottom, 17)
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Breaks")
@@ -28,8 +30,7 @@ struct SettingsView: View {
 
     private var breaksPerDayCard: some View {
         Card {
-            Label("Breaks per day", systemImage: "number")
-                .font(.headline)
+            cardHeader(symbol: "number", title: "Breaks per day")
 
             Picker(
                 "Breaks per day",
@@ -47,12 +48,7 @@ struct SettingsView: View {
             if model.state.breaksUsed > model.settings.breaksPerDay {
                 // Spent breaks aren't refunded, so lowering the allowance below
                 // today's usage takes effect tomorrow rather than retroactively.
-                Label(
-                    "You've already used \(model.state.breaksUsed) today — this takes effect tomorrow.",
-                    systemImage: "info.circle"
-                )
-                .font(.caption)
-                .foregroundColor(.orange)
+                note("You've already used \(model.state.breaksUsed) today — this takes effect tomorrow.")
             }
         }
     }
@@ -61,18 +57,11 @@ struct SettingsView: View {
 
     private var breakLengthCard: some View {
         Card {
-            Label("Break length", systemImage: "timer")
-                .font(.headline)
-
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(model.settings.breakMinutes)")
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                Text(model.settings.breakMinutes == 1 ? "minute" : "minutes")
-                    .font(.headline)
-                    .foregroundColor(Theme.muted)
-                Spacer()
-            }
+            cardHeader(
+                symbol: "timer",
+                title: "Break length",
+                trailing: "\(model.settings.breakMinutes) min"
+            )
 
             Slider(
                 value: Binding(
@@ -84,13 +73,7 @@ struct SettingsView: View {
             )
             .tint(Theme.accent)
 
-            HStack {
-                Text("\(BreakRules.minMinutes) min")
-                Spacer()
-                Text("\(BreakRules.maxMinutes) min")
-            }
-            .font(.caption)
-            .foregroundColor(Theme.muted)
+            bounds("\(BreakRules.minMinutes) min", "\(BreakRules.maxMinutes) min")
         }
     }
 
@@ -98,22 +81,12 @@ struct SettingsView: View {
 
     private var cooldownCard: some View {
         Card {
-            Label("Wait between breaks", systemImage: "hourglass")
-                .font(.headline)
-
-            Text("How long you have to wait after one break before the next can start.")
-                .font(.subheadline)
-                .foregroundColor(Theme.muted)
-
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(model.settings.cooldownMinutes)")
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                Text("minutes")
-                    .font(.headline)
-                    .foregroundColor(Theme.muted)
-                Spacer()
-            }
+            cardHeader(
+                symbol: "hourglass",
+                title: "Wait between breaks",
+                subtitle: "Before the next one can start",
+                trailing: "\(model.settings.cooldownMinutes) min"
+            )
 
             Slider(
                 value: Binding(
@@ -125,34 +98,87 @@ struct SettingsView: View {
             )
             .tint(Theme.accent)
 
-            HStack {
-                Text("\(BreakRules.minCooldownMinutes) min")
-                Spacer()
-                Text("1 hour")
-            }
-            .font(.caption)
-            .foregroundColor(Theme.muted)
+            bounds("\(BreakRules.minCooldownMinutes) min", "1 hour")
 
             if model.isCoolingDown {
-                Label(
-                    "Cooling down now — \(model.cooldownText) left. Changes apply to the next one.",
-                    systemImage: "info.circle"
-                )
-                .font(.caption)
-                .foregroundColor(.orange)
+                note("Cooling down now — \(model.cooldownText) left. Changes apply to the next one.")
             }
         }
     }
 
+    // MARK: - Pieces
+
+    private func cardHeader(
+        symbol: String,
+        title: String,
+        subtitle: String? = nil,
+        trailing: String? = nil
+    ) -> some View {
+        HStack(spacing: 10) {
+            IconTile(symbol: symbol)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(Theme.display(15, .medium))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.muted)
+                }
+            }
+            Spacer()
+            if let trailing { Pill(text: trailing) }
+        }
+    }
+
+    private func bounds(_ low: String, _ high: String) -> some View {
+        HStack {
+            Text(low)
+            Spacer()
+            Text(high)
+        }
+        .font(.system(size: 11))
+        .foregroundColor(Theme.faint)
+    }
+
+    private func note(_ text: String) -> some View {
+        Label(text, systemImage: "info.circle")
+            .font(.system(size: 11))
+            .foregroundColor(.orange)
+    }
+
+    /// Temporary while the out-of-process timing is being pinned down on device.
+    private var diagnosticsLink: some View {
+        NavigationLink {
+            DiagnosticsView()
+        } label: {
+            Card {
+                HStack(spacing: 10) {
+                    IconTile(symbol: "waveform.path.ecg")
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Diagnostics").font(Theme.display(15, .medium))
+                        Text("What the extensions actually did, and when")
+                            .font(.system(size: 11.5))
+                            .foregroundColor(Theme.muted)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(Theme.faint)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     private var explainer: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("A break counts down while you're actually using the blocked apps, so time spent with your phone in your pocket doesn't burn it.")
-            Text("The wait between breaks runs on the clock instead, so it can't be waited out inside a blocked app.")
+        VStack(alignment: .leading, spacing: 9) {
+            Text("A break runs on the clock. Start a 5-minute break and the block comes back 5 minutes later, whether or not you spent them in the app.")
+            Text("The wait between breaks is the same, so it can't be run down from inside a blocked app either.")
             Text("Breaks reset at midnight. Ending one early doesn't give it back, and it still starts the wait.")
         }
-        .font(.caption)
+        .font(.system(size: 11))
         .foregroundColor(Theme.muted)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 6)
+        .padding(.top, 4)
     }
 }

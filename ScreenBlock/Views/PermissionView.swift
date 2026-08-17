@@ -14,12 +14,12 @@ struct PermissionView: View {
             Spacer()
 
             Image(systemName: "lock.shield.fill")
-                .font(.system(size: 64))
-                .foregroundColor(Theme.accent)
+                .font(.system(size: 62))
+                .foregroundStyle(Theme.gradient)
 
             VStack(spacing: 10) {
                 Text("ScreenBlock needs Screen Time access")
-                    .font(.title2.bold())
+                    .font(Theme.display(22, .medium))
                     .multilineTextAlignment(.center)
 
                 Text("iOS handles the blocking itself. ScreenBlock never sees which apps you pick — it only receives anonymous handles from the system.")
@@ -44,7 +44,8 @@ struct PermissionView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Theme.gradient, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    .shadow(color: Theme.accent.opacity(0.35), radius: 14, y: 6)
             }
             .foregroundColor(.white)
         }

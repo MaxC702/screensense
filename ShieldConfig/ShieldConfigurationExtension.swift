@@ -85,7 +85,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
         return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
-            backgroundColor: UIColor(red: 0.04, green: 0.05, blue: 0.08, alpha: 0.92),
+            backgroundColor: UIColor(red: 0.043, green: 0.035, blue: 0.071, alpha: 0.93),
             icon: UIImage(systemName: Self.symbol(coolingDown: coolingDown, hasBreaks: hasBreaks)),
             title: ShieldConfiguration.Label(
                 text: title,
@@ -100,7 +100,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: canStart ? .white : UIColor.white.withAlphaComponent(0.4)
             ),
             primaryButtonBackgroundColor: canStart
-                ? UIColor(red: 0.29, green: 0.55, blue: 1.0, alpha: 1.0)
+                ? UIColor(red: 0.486, green: 0.361, blue: 1.0, alpha: 1.0)
                 : UIColor(white: 1.0, alpha: 0.12),
             secondaryButtonLabel: ShieldConfiguration.Label(
                 text: "Close",
