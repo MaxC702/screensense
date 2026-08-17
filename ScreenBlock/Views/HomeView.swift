@@ -176,7 +176,7 @@ struct HomeView: View {
                 endBreakButton
             } else {
                 startBreakButton
-                if model.isCoolingDown {
+                if model.isCoolingDown, model.breaksRemaining > 0 {
                     Text("Breaks are spaced out so you can't take them back to back.")
                         .font(.system(size: 11))
                         .foregroundColor(heroIsLive ? .white.opacity(0.8) : Theme.muted)
@@ -249,12 +249,14 @@ struct HomeView: View {
 
     /// The button doubles as the cooldown readout — a disabled control with no
     /// explanation is the thing that makes an app feel broken.
+    /// Order matters: spending the last break starts a cooldown too, and the
+    /// cooldown readout would then count towards a break that does not exist.
     private var startButtonTitle: String {
-        if model.isCoolingDown {
-            return "Next break in \(model.cooldownText)"
-        }
         if model.breaksRemaining == 0 {
             return "No breaks left today"
+        }
+        if model.isCoolingDown {
+            return "Next break in \(model.cooldownText)"
         }
         return "Start \(model.settings.breakMinutes)-minute break"
     }

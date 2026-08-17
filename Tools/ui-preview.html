@@ -313,7 +313,7 @@ function shield(o){
     <div style="font-size:22px;font-weight:700">${o.title}</div>
     <div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.4">${o.subtitle}</div>
     <div style="width:100%;display:flex;flex-direction:column;gap:9px;margin-top:8px">
-      <div class="btn ${o.canStart?'grad':'frost'}" style="border-radius:22px;padding:13px 0">${o.primary}</div>
+      ${o.primary ? `<div class="btn ${o.canStart?'grad':'frost'}" style="border-radius:22px;padding:13px 0">${o.primary}</div>` : ''}
       <div style="text-align:center;font-size:14px;color:rgba(255,255,255,.75);padding:11px 0">Close</div>
     </div>
   </div></div>`;
@@ -351,8 +351,8 @@ const frames = [
     shield({title:"You blocked this",subtitle:"2 of 3 breaks left today.",primary:"Take a 5-minute break",canStart:true})],
   ["Block screen — cooling down", "The only state that says “Not right now”, because it's the only one where coming back shortly works.",
     shield({title:"Not right now",subtitle:"2 of 3 breaks left today.",primary:"Next break in 13 minutes",canStart:false})],
-  ["Block screen — none left", "<code>moon.zzz.fill</code> in the real build; button is inert until midnight.",
-    shield({title:"Done for today",subtitle:"No breaks left. They come back at midnight.",primary:"Blocked until tomorrow",canStart:false})],
+  ["Block screen — none left", "No primary button at all: with the budget spent there is nothing to offer, so only Close remains. Symbol is <code>lock.fill</code> by day and <code>moon.zzz.fill</code> after 21:00.",
+    shield({title:"Done for today",subtitle:"No breaks left.",primary:null,canStart:false})],
 ];
 
 document.getElementById('grid').innerHTML = frames.map(([t,d,html])=>`

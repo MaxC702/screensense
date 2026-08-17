@@ -39,9 +39,19 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         [8, 11, 18].contains(minutes) ? "an" : "a"
     }
 
-    private static func symbol(coolingDown: Bool, hasBreaks: Bool) -> String {
-        if coolingDown { return "hourglass" }
-        return hasBreaks ? "hand.raised.fill" : "moon.zzz.fill"
+    /// Out of breaks outranks cooling down: when both are true the cooldown is
+    /// irrelevant, because nothing it is counting towards exists.
+    ///
+    /// The moon is only honest late on. "They come back at midnight" reads as a
+    /// sleep cue at 22:00 and as a non sequitur at 14:00, so before 21:00 the
+    /// spent budget gets a lock instead — same message, no implication that the
+    /// user should be in bed.
+    private static func symbol(coolingDown: Bool, hasBreaks: Bool, now: Date = .now) -> String {
+        if !hasBreaks {
+            let hour = Calendar.current.component(.hour, from: now)
+            return hour >= 21 ? "moon.zzz.fill" : "lock.fill"
+        }
+        return coolingDown ? "hourglass" : "hand.raised.fill"
     }
 
     private static func makeConfiguration() -> ShieldConfiguration {
@@ -54,7 +64,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
         // A break can be unavailable for two different reasons, and saying which
         // one matters: "come back in 12 minutes" is actionable, "no breaks left"
-        // is not. Cooling down is checked first because it's the temporary one.
+        // is not.
         let coolingDown = state.isCoolingDown()
         let hasBreaks = remaining > 0
         let canStart = hasBreaks && !coolingDown
@@ -66,21 +76,27 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // breaks is a false promise (nothing changes until midnight).
         let title: String
         let subtitle: String
-        let primaryLabel: String
+        // Optional: with the budget spent there is nothing to offer, and a button
+        // is a control. Leaving one there — even an inert one — invites a tap and
+        // then refuses it. Only "Close" remains.
+        let primaryLabel: String?
 
-        if coolingDown {
+        // Spending the last break puts you in both states at once. Out-of-breaks
+        // has to be tested first, or the cooldown branch wins and offers a "next
+        // break" that will not exist until midnight.
+        if !hasBreaks {
+            title = "Done for today"
+            subtitle = "No breaks left."
+            primaryLabel = nil
+        } else if coolingDown {
             let wait = BreakState.minutesRoundedUp(from: state.remainingCooldownSeconds())
             title = "Not right now"
             subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
             primaryLabel = "Next break in \(wait) minute\(wait == 1 ? "" : "s")"
-        } else if hasBreaks {
+        } else {
             title = "You blocked this"
             subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
             primaryLabel = "Take \(Self.article(for: minutes)) \(minutes)-minute break"
-        } else {
-            title = "Done for today"
-            subtitle = "No breaks left. They come back at midnight."
-            primaryLabel = "Blocked until tomorrow"
         }
 
         return ShieldConfiguration(
@@ -95,13 +111,17 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 text: subtitle,
                 color: UIColor.white.withAlphaComponent(0.65)
             ),
-            primaryButtonLabel: ShieldConfiguration.Label(
-                text: primaryLabel,
-                color: canStart ? .white : UIColor.white.withAlphaComponent(0.4)
-            ),
-            primaryButtonBackgroundColor: canStart
-                ? UIColor(red: 0.486, green: 0.361, blue: 1.0, alpha: 1.0)
-                : UIColor(white: 1.0, alpha: 0.12),
+            primaryButtonLabel: primaryLabel.map {
+                ShieldConfiguration.Label(
+                    text: $0,
+                    color: canStart ? .white : UIColor.white.withAlphaComponent(0.4)
+                )
+            },
+            primaryButtonBackgroundColor: primaryLabel == nil
+                ? nil
+                : (canStart
+                   ? UIColor(red: 0.486, green: 0.361, blue: 1.0, alpha: 1.0)
+                   : UIColor(white: 1.0, alpha: 0.12)),
             secondaryButtonLabel: ShieldConfiguration.Label(
                 text: "Close",
                 color: UIColor.white.withAlphaComponent(0.75)
