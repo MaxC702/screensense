@@ -8,29 +8,56 @@ import SwiftUI
 /// and their own names, and those are the whole legend.
 ///
 /// Days the app was not watching leave a gap. The line stops and starts again
-/// rather than sloping across them, because a straight line through a fortnight
-/// the app knew nothing about is a claim it cannot make.
+/// rather than sloping across them, because a straight line through days the
+/// app knew nothing about is a claim it cannot make.
 struct StreakGraph: View {
     let points: [AppModel.DayPoint]
 
     /// Room for the rung names down the right-hand side.
     private let labelWidth: CGFloat = 62
+    /// Room for the day names along the bottom.
+    private let dayLabelHeight: CGFloat = 20
+    /// Keeps the first and last points off the edges, so their dots are whole
+    /// and their day names have somewhere to sit.
+    private let inset: CGFloat = 15
+
+    private static let weekday: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("EEE")
+        return formatter
+    }()
 
     var body: some View {
         GeometryReader { geo in
             let plotWidth = max(1, geo.size.width - labelWidth)
-            let height = geo.size.height
+            let plotHeight = max(1, geo.size.height - dayLabelHeight)
 
             ZStack(alignment: .topLeading) {
-                rungs(width: plotWidth, height: height)
-                area(width: plotWidth, height: height)
-                line(width: plotWidth, height: height)
-                dots(width: plotWidth, height: height)
-                labels(plotWidth: plotWidth, height: height)
+                rungs(width: plotWidth, height: plotHeight)
+                area(width: plotWidth, height: plotHeight)
+                line(width: plotWidth, height: plotHeight)
+                dots(width: plotWidth, height: plotHeight)
+                labels(plotWidth: plotWidth, height: plotHeight)
+                days(width: plotWidth, plotHeight: plotHeight)
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(summary)
+    }
+
+    /// One name per day along the bottom. Today is called Today rather than by
+    /// its weekday — it is the point everything else is read relative to, and
+    /// counting back from "Fri" to work out which end you are looking at is
+    /// exactly the work a label is supposed to save.
+    private func days(width: CGFloat, plotHeight: CGFloat) -> some View {
+        ForEach(Array(points.enumerated()), id: \.element.id) { index, point in
+            let isToday = index == points.count - 1
+            Text(isToday ? "Today" : Self.weekday.string(from: point.date))
+                .font(.system(size: 9, weight: isToday ? .bold : .regular))
+                .foregroundColor(isToday ? Theme.streak : Theme.faint)
+                .fixedSize()
+                .position(x: x(index, in: width), y: plotHeight + dayLabelHeight / 2)
+        }
     }
 
     // MARK: - Layers
@@ -117,7 +144,8 @@ struct StreakGraph: View {
 
     private func x(_ index: Int, in width: CGFloat) -> CGFloat {
         guard points.count > 1 else { return width / 2 }
-        return width * CGFloat(index) / CGFloat(points.count - 1)
+        let span = max(1, width - inset * 2)
+        return inset + span * CGFloat(index) / CGFloat(points.count - 1)
     }
 
     private func y(for level: StreakLevel, in height: CGFloat) -> CGFloat {

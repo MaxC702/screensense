@@ -8,9 +8,10 @@ import SwiftUI
 struct StreakView: View {
     @EnvironmentObject private var model: AppModel
 
-    /// Two weeks. Long enough to show a habit turning, short enough that each
-    /// day still gets width worth drawing on a phone.
-    private let window = 14
+    /// A week, which is also the window the level is averaged over — so the
+    /// graph shows exactly the days the flame is currently being judged on, and
+    /// leaves each of them enough width to be labelled and read individually.
+    private let window = 7
 
     var body: some View {
         NavigationStack {
@@ -79,23 +80,18 @@ struct StreakView: View {
             }
 
             StreakGraph(points: points)
-                .frame(height: 168)
+                .frame(height: 186)
 
-            Text(graphCaption(points))
-                .font(.system(size: 11))
-                .foregroundColor(Theme.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            // No caption. The rungs are named down the side and the days are
+            // named along the bottom, which is the whole of what a sentence
+            // under it used to say.
+            if points.allSatisfy({ $0.level == nil }) {
+                Text("Nothing to plot yet — the line starts once a day is behind you.")
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.faint)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-    }
-
-    /// A graph of five flat points explains nothing, so until there is a shape
-    /// to read the caption says what will make one.
-    private func graphCaption(_ points: [AppModel.DayPoint]) -> String {
-        let drawn = points.filter { $0.level != nil }.count
-        guard drawn > 1 else {
-            return "The line rises as you unblock less. Come back tomorrow and it will have somewhere to go."
-        }
-        return "Higher is stricter. A day you spent no breaks sits at the top; a day you spent the lot sits at the bottom."
     }
 
     // MARK: - Where the level comes from
