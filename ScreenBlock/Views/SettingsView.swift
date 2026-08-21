@@ -1,6 +1,16 @@
+import FamilyControls
 import SwiftUI
 
-/// Where the two numbers that define the break budget live.
+/// Everything that defines the block: what it covers, whether it is on, and the
+/// break budget that lets you through it.
+///
+/// The two protection controls are here rather than on Home deliberately. Home
+/// is the screen you land on when a break has just run out, and that is the
+/// worst possible moment to be one tap from a switch that turns the whole thing
+/// off. Screen Time loses to exactly that: adding fifteen more minutes is so
+/// close to hand it stops feeling like a decision. Putting the switch behind a
+/// navigation push does not stop anyone who means it — it just means they have
+/// to mean it.
 ///
 /// Changes write through immediately — there is no save button — because the
 /// shield extension reads these values from the shared container the next time
@@ -9,9 +19,19 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
 
+    /// Set when the switch is thrown off with a run in progress. The toggle
+    /// snaps back to on while this is up, because nothing has been decided yet.
+    @State private var isConfirmingUnblock = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 13) {
+                SectionLabel("Protection")
+                blockedAppsCard
+                blockingCard
+
+                SectionLabel("Breaks")
+                levelCard
                 breaksPerDayCard
                 breakLengthCard
                 cooldownCard
@@ -22,8 +42,196 @@ struct SettingsView: View {
             .padding(.bottom, 17)
         }
         .background(Theme.background.ignoresSafeArea())
-        .navigationTitle("Breaks")
+        .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .familyActivityPicker(isPresented: $model.isPickerPresented, selection: $model.selection)
+        .onChange(of: model.isPickerPresented) { presented in
+            // Commit when Apple's picker dismisses rather than on every keystroke
+            // inside it — the picker mutates the binding continuously.
+            if !presented { model.commitSelection() }
+        }
+    }
+
+    // MARK: - Protection
+
+    private var blockedAppsCard: some View {
+        Card {
+            HStack(spacing: 10) {
+                IconTile(symbol: "square.grid.2x2.fill")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Blocked apps").font(Theme.display(15, .medium))
+                    Text(model.blockedCount == 0
+                         ? "Nothing selected yet"
+                         : "\(model.blockedCount) apps, categories and sites")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.muted)
+                }
+                Spacer()
+            }
+
+            Button {
+                model.isPickerPresented = true
+            } label: {
+                Text(model.blockedCount == 0 ? "Choose apps" : "Edit selection")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(
+                        Theme.accent.opacity(0.16),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+                    .foregroundColor(Theme.accentSoft)
+            }
+        }
+    }
+
+    private var blockingCard: some View {
+        Card {
+            Toggle(isOn: Binding(
+                get: { model.state.blockingEnabled },
+                // Turning it *on* is never second-guessed — friction belongs
+                // only on the direction that costs something. Turning it off
+                // with a run going asks first; with nothing to lose it just
+                // goes, because a confirmation that always fires stops being
+                // read within a week.
+                set: { enabled in
+                    if !enabled, model.streakDays > 0 {
+                        isConfirmingUnblock = true
+                    } else {
+                        model.setBlocking(enabled)
+                    }
+                }
+            )) {
+                HStack(spacing: 10) {
+                    IconTile(symbol: "lock.shield.fill")
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Block these apps").font(Theme.display(15, .medium))
+                        Text(blockingSubtitle)
+                            .font(.system(size: 11.5))
+                            .foregroundColor(Theme.muted)
+                    }
+                }
+            }
+            .tint(Theme.accent)
+            .disabled(model.blockedCount == 0)
+            .opacity(model.blockedCount == 0 ? 0.45 : 1)
+
+            // Said at the switch, not on Home, because this is now the only place
+            // it can be read — and the only place it can be acted on.
+            if model.state.blockingEnabled, model.breaksRemaining == 0 {
+                note("Out of breaks until midnight. Switching off is not a sixth break — it ends the streak.")
+            }
+        }
+        .alert(unblockAlertTitle, isPresented: $isConfirmingUnblock) {
+            // iOS puts the cancel role last whatever order these are written in,
+            // so the reflex — the bottom button, the one under your thumb — is
+            // the one that keeps the streak.
+            Button("Keep blocking on", role: .cancel) { }
+            Button("Turn it off", role: .destructive) { model.setBlocking(false) }
+        } message: {
+            Text(unblockAlertMessage)
+        }
+    }
+
+    private var unblockAlertTitle: String {
+        let days = model.streakDays
+        return "End your \(days)-day \(model.streakLevel.name) streak?"
+    }
+
+    /// Names the cost, then names the cheaper thing — because the honest answer
+    /// to most of the moments this alert appears in is "you wanted a few minutes,
+    /// not an unlocked phone", and a break costs nothing but a break.
+    private var unblockAlertMessage: String {
+        let days = model.streakDays
+        var lines = ["Turning blocking off unblocks everything and resets your streak to zero. \(days) day\(days == 1 ? "" : "s") gone."]
+
+        // Only promised when it will actually happen, so the alert never
+        // threatens a consequence the ladder cannot deliver.
+        if days >= StreakLevel.minimumRunToPenalise, model.configuredStreakLevel > .ember {
+            let dropped = model.configuredStreakLevel.lowered(by: 1)
+            lines.append("Your flame drops to \(dropped.name) with it, and takes \(StreakLevel.relightDays) days of blocking to earn back.")
+        }
+
+        if model.breaksRemaining > 0 {
+            let left = model.breaksRemaining
+            lines.append("You still have \(left) break\(left == 1 ? "" : "s") today. A break costs you nothing but the break.")
+        } else {
+            lines.append("Your breaks come back at midnight, and they don't cost the streak.")
+        }
+
+        if model.bestStreak > 0 {
+            lines.append("Your best run of \(model.bestStreak) day\(model.bestStreak == 1 ? "" : "s") is kept either way.")
+        }
+
+        return lines.joined(separator: "\n\n")
+    }
+
+    /// This switch is the only thing that costs a streak, so the cost is spelled
+    /// out on it rather than left for the badge to imply — and once a run is
+    /// lost, the number to beat is named in the same place.
+    private var blockingSubtitle: String {
+        if model.state.blockingEnabled {
+            let days = model.streakDays
+            guard days > 0 else { return "Stays on until you spend a break" }
+            return "\(days)-day streak — turning this off resets it"
+        }
+        guard model.bestStreak > 0 else { return "Stays on until you spend a break" }
+        return "Your best run was \(model.bestStreak) day\(model.bestStreak == 1 ? "" : "s") — start again"
+    }
+
+    // MARK: - Level
+
+    /// Heads the Breaks section, above the controls that set it.
+    ///
+    /// The level is the reason to touch the sliders at all, and it moves while
+    /// they are being dragged — which is the entire feedback loop. Putting it
+    /// below them would hide the consequence under the cause.
+    private var levelCard: some View {
+        let level = model.configuredStreakLevel
+
+        return Card {
+            HStack(spacing: 10) {
+                IconTile(symbol: "flame.fill")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Streak level").font(Theme.display(15, .medium))
+                    Text("\(model.dailyUnblockedMinutes) unblocked minute\(model.dailyUnblockedMinutes == 1 ? "" : "s") a day")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.muted)
+                }
+                Spacer()
+                Text(level.name)
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundColor(level.tint)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(level.tint.opacity(0.16), in: Capsule())
+            }
+
+            StreakLadder(level: level)
+
+            Text(nextLevelHint)
+                .font(.system(size: 11))
+                .foregroundColor(Theme.muted)
+
+            // …and says so explicitly when the flame is not currently showing it.
+            // Without this the card and the badge would disagree on screen with
+            // nothing to explain the gap.
+            if model.isRelighting {
+                note("A lost run has your flame at \(model.streakLevel.name) for now. \(relightHint)")
+            }
+        }
+    }
+
+    private var relightHint: String {
+        let days = model.daysToRelight
+        return "\(days) more day\(days == 1 ? "" : "s") of blocking puts it back."
+    }
+
+    private var nextLevelHint: String {
+        guard let next = model.configuredStreakLevel.next, let shed = model.minutesToNextLevel else {
+            return "Nothing is stricter than this."
+        }
+        return "\(shed) fewer minute\(shed == 1 ? "" : "s") a day reaches \(next.name)."
     }
 
     // MARK: - Breaks per day
@@ -174,6 +382,7 @@ struct SettingsView: View {
             Text("A break runs on the clock. Start a 5-minute break and the block comes back 5 minutes later, whether or not you spent them in the app.")
             Text("The wait between breaks is the same, so it can't be run down from inside a blocked app either.")
             Text("Breaks reset at midnight. Ending one early doesn't give it back, and it still starts the wait.")
+            Text("Your streak's level comes from breaks per day times break length — the unblocked time you allow yourself. The wait between breaks changes when that time can be spent, not how much of it there is, so it doesn't count towards the level.")
         }
         .font(.system(size: 11))
         .foregroundColor(Theme.muted)

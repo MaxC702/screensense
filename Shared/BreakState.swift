@@ -55,19 +55,62 @@ struct BreakState: Codable, Equatable {
     var cooldownUntil: Date?
     /// User-facing on/off switch. Blocking is never applied unless this is true.
     var blockingEnabled: Bool
+    /// Instant at which the current unbroken run of blocking began; `nil` when
+    /// blocking is off.
+    ///
+    /// A start date rather than a counter incremented at midnight, because
+    /// nothing of ours is guaranteed to run at midnight. Deriving the length by
+    /// subtraction means a streak stays correct across days when the app was
+    /// never opened — which is precisely the streak this app wants to reward.
+    var streakStartedOn: Date?
+    /// Longest run reached so far, so breaking a streak leaves something to aim
+    /// at rather than erasing the evidence that it happened.
+    var bestStreak: Int
+    /// Rungs currently docked from the ladder because a run was lost; zero when
+    /// nothing is owed.
+    ///
+    /// Stored rather than derived, because the level itself is derived from
+    /// settings the user can change at will — a penalty living in the settings
+    /// could be wiped out by dragging a slider, which is the one place it must
+    /// not be reachable from.
+    var levelPenaltyRungs: Int
 
     init(
         dayKey: String = BreakState.dayKey(for: .now),
         breaksUsed: Int = 0,
         breakEndsAt: Date? = nil,
         cooldownUntil: Date? = nil,
-        blockingEnabled: Bool = false
+        blockingEnabled: Bool = false,
+        streakStartedOn: Date? = nil,
+        bestStreak: Int = 0,
+        levelPenaltyRungs: Int = 0
     ) {
         self.dayKey = dayKey
         self.breaksUsed = breaksUsed
         self.breakEndsAt = breakEndsAt
         self.cooldownUntil = cooldownUntil
         self.blockingEnabled = blockingEnabled
+        self.streakStartedOn = streakStartedOn
+        self.bestStreak = bestStreak
+        self.levelPenaltyRungs = levelPenaltyRungs
+    }
+
+    /// Hand-written for the same reason as `BreakSettings`: the synthesized
+    /// decoder calls `decode` for non-optional properties, so introducing one —
+    /// `bestStreak` — would make every payload written by an earlier build
+    /// throw. `BreakStore` turns a throw into a fresh default state, so that
+    /// would quietly wipe today's usage and the running break on upgrade.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        dayKey = try container.decodeIfPresent(String.self, forKey: .dayKey)
+            ?? BreakState.dayKey(for: .now)
+        breaksUsed = try container.decodeIfPresent(Int.self, forKey: .breaksUsed) ?? 0
+        breakEndsAt = try container.decodeIfPresent(Date.self, forKey: .breakEndsAt)
+        cooldownUntil = try container.decodeIfPresent(Date.self, forKey: .cooldownUntil)
+        blockingEnabled = try container.decodeIfPresent(Bool.self, forKey: .blockingEnabled) ?? false
+        streakStartedOn = try container.decodeIfPresent(Date.self, forKey: .streakStartedOn)
+        bestStreak = max(0, try container.decodeIfPresent(Int.self, forKey: .bestStreak) ?? 0)
+        levelPenaltyRungs = max(0, try container.decodeIfPresent(Int.self, forKey: .levelPenaltyRungs) ?? 0)
     }
 
     // MARK: - Derived
@@ -113,6 +156,68 @@ struct BreakState: Codable, Equatable {
     /// stale by the time it's read.
     static func minutesRoundedUp(from seconds: TimeInterval) -> Int {
         max(1, Int((seconds / 60).rounded(.up)))
+    }
+
+    // MARK: - Streak
+
+    /// Days blocking has been left on, counting today. Zero when blocking is off.
+    ///
+    /// Today counts from the moment the switch goes on rather than once the day
+    /// has been survived: a streak reading "0" beside a switch that is plainly
+    /// on looks broken, and the day is only ever lost by switching off — which
+    /// is what `endStreak` is for.
+    func streakDays(now: Date = .now, calendar: Calendar = .current) -> Int {
+        guard let streakStartedOn else { return 0 }
+        let elapsed = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: streakStartedOn),
+            to: calendar.startOfDay(for: now)
+        ).day ?? 0
+        // A clock moved backwards, or a flight west, shouldn't read as negative.
+        return max(0, elapsed) + 1
+    }
+
+    /// Called when blocking is switched on. An existing run is left alone, so
+    /// that a repair pass or a second write can't quietly restart the count.
+    mutating func beginStreakIfNeeded(now: Date = .now) {
+        guard streakStartedOn == nil else { return }
+        streakStartedOn = now
+    }
+
+    /// Switching blocking off is the one action that costs a streak.
+    ///
+    /// Spending a break deliberately does not. Breaks are the sanctioned way
+    /// through the block, and charging a streak for using them would push people
+    /// towards the switch instead — which removes the block entirely.
+    mutating func endStreak(now: Date = .now, calendar: Calendar = .current) {
+        let lost = streakDays(now: now, calendar: calendar)
+        bestStreak = max(bestStreak, lost)
+
+        // The days alone were not enough of a consequence. A run that ends goes
+        // straight back to 1 while the flame keeps exactly the same colour and
+        // the same name, which reads as though nothing was actually lost. Taking
+        // a rung with it means the badge shows the loss in both dimensions.
+        if lost >= StreakLevel.minimumRunToPenalise {
+            levelPenaltyRungs = 1
+        }
+
+        streakStartedOn = nil
+    }
+
+    /// The penalty still in force, which is not always the one on record.
+    ///
+    /// Paid off in days on a new run rather than in wall clock, so it cannot be
+    /// sat out: `streakDays` is zero for the entire time blocking is off, so the
+    /// debt simply waits there until you start again.
+    func activeLevelPenalty(now: Date = .now, calendar: Calendar = .current) -> Int {
+        guard levelPenaltyRungs > 0 else { return 0 }
+        let days = streakDays(now: now, calendar: calendar)
+        return days >= StreakLevel.relightDays ? 0 : levelPenaltyRungs
+    }
+
+    /// Days of the current run still to go before the rung comes back.
+    func daysToRelight(now: Date = .now, calendar: Calendar = .current) -> Int {
+        max(0, StreakLevel.relightDays - streakDays(now: now, calendar: calendar))
     }
 
     // MARK: - Day rollover

@@ -173,6 +173,12 @@ enum BreakEngine {
             BreakStore.mutate(now: now) { $0.beginStreakIfNeeded(now: now) }
         }
 
+        // A paid-off penalty is only ever *computed* as spent; clear the record
+        // too, so the stored state stops claiming a debt that no longer exists.
+        if state.levelPenaltyRungs > 0, state.activeLevelPenalty(now: now) == 0 {
+            BreakStore.mutate(now: now) { $0.levelPenaltyRungs = 0 }
+        }
+
         if state.breakEndsAt != nil, !state.isOnBreak(now: now) {
             BreakLog.record("reconcile: found an expired break still open", source: "app/reconcile")
             endBreak(source: "app/reconcile")

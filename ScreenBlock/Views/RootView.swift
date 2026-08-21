@@ -36,6 +36,11 @@ enum Theme {
     static let muted = Color.white.opacity(0.55)
     static let faint = Color.white.opacity(0.35)
     static let hairline = Color.white.opacity(0.07)
+    /// The streak's own colour. Warm on purpose: it is a different currency from
+    /// the break budget, and reusing the purple accent would make the two read as
+    /// one meter. System orange goes muddy on this background, so this is a
+    /// lifted amber. Doubles as the Flame rung of `StreakLevel`.
+    static let streak = Color(red: 1.0, green: 0.596, blue: 0.251)
 
     static let gradient = LinearGradient(
         colors: [accent, accentEnd],
@@ -65,6 +70,63 @@ enum Theme {
             case .demiBold: return "AvenirNext-DemiBold"
             }
         }
+    }
+}
+
+/// The ladder's tints, kept out of `StreakLevel` itself because that type is
+/// compiled into all four targets and `Theme` only exists in the app.
+///
+/// They run the way a fire actually heats — dull red, amber, gold, white, blue —
+/// so climbing the ladder looks like climbing it, and the flame in the header
+/// says how hard a streak is before its name is read anywhere.
+extension StreakLevel {
+    var tint: Color {
+        switch self {
+        case .ember: return Color(red: 0.878, green: 0.353, blue: 0.235)
+        case .flame: return Theme.streak
+        case .blaze: return Color(red: 1.0, green: 0.788, blue: 0.243)
+        case .whiteHeat: return Color(red: 1.0, green: 0.965, blue: 0.878)
+        // Cyan rather than a true blue, which at this size is indistinguishable
+        // from the accent that ends the app's own gradient.
+        case .blueFlame: return Color(red: 0.361, green: 0.871, blue: 1.0)
+        }
+    }
+}
+
+/// The five-rung heat bar, lit up to `level`.
+///
+/// Each rung carries its own tint rather than the current level's, so the bar
+/// shows the ladder itself — where this streak sits on it, and what the colour
+/// above it will be.
+struct StreakLadder: View {
+    let level: StreakLevel
+    /// What the budget already earns, when that is higher than what is lit.
+    /// Rungs between the two are drawn as ghosts — the gap a lost run opened up,
+    /// and exactly what relighting gives back.
+    var target: StreakLevel?
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(StreakLevel.allCases, id: \.rawValue) { rung in
+                Capsule()
+                    .fill(fill(for: rung))
+                    .frame(height: 5)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+    }
+
+    private func fill(for rung: StreakLevel) -> Color {
+        if rung <= level { return rung.tint }
+        if let target, rung <= target { return rung.tint.opacity(0.22) }
+        return Color.white.opacity(0.10)
+    }
+
+    private var label: String {
+        let base = "\(level.name), level \(level.rawValue + 1) of \(StreakLevel.allCases.count)"
+        guard let target, target > level else { return base }
+        return base + ", down from \(target.name)"
     }
 }
 

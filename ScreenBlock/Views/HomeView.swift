@@ -1,8 +1,8 @@
-import FamilyControls
 import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var isStreakInfoPresented = false
 
     var body: some View {
         NavigationStack {
@@ -10,10 +10,7 @@ struct HomeView: View {
                 VStack(spacing: 13) {
                     header
                     if PreviewEnvironment.isSimulator { simulatorBanner }
-
-                    SectionLabel("Protection")
-                    blockedAppsCard
-                    statusCard
+                    if needsSetup { setupCard }
 
                     SectionLabel("Breaks")
                     breaksHero
@@ -28,11 +25,8 @@ struct HomeView: View {
             .background(Theme.background.ignoresSafeArea())
             // Hidden only for this screen; SettingsView brings its own bar back.
             .toolbar(.hidden, for: .navigationBar)
-            .familyActivityPicker(isPresented: $model.isPickerPresented, selection: $model.selection)
-            .onChange(of: model.isPickerPresented) { presented in
-                // Commit when Apple's picker dismisses rather than on every keystroke
-                // inside it — the picker mutates the binding continuously.
-                if !presented { model.commitSelection() }
+            .sheet(isPresented: $isStreakInfoPresented) {
+                StreakInfoView().environmentObject(model)
             }
         }
         .tint(Theme.accentSoft)
@@ -51,12 +45,12 @@ struct HomeView: View {
                     Circle()
                         .fill(model.state.blockingEnabled ? Color.green : Theme.faint)
                         .frame(width: 7, height: 7)
-                    Text(model.state.blockingEnabled ? "Blocking is on" : "Blocking is off")
+                    statusLine
                         .font(.system(size: 12))
-                        .foregroundColor(Theme.muted)
                 }
             }
             Spacer()
+            streakBadge
             NavigationLink {
                 SettingsView()
             } label: {
@@ -66,9 +60,75 @@ struct HomeView: View {
                     .frame(width: 38, height: 38)
                     .background(Theme.card, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             }
-            .accessibilityLabel("Break settings")
+            .accessibilityLabel("Settings")
         }
         .padding(.top, 4)
+    }
+
+    /// The level's name sits here, immediately under the wordmark and a few
+    /// points from the badge it explains — a colour on its own means nothing
+    /// until something nearby says what it is called.
+    private var statusLine: Text {
+        let on = model.state.blockingEnabled
+        let status = Text(on ? "Blocking is on" : "Blocking is off")
+            .foregroundColor(Theme.muted)
+        guard on, model.streakDays > 0 else { return status }
+
+        // While relighting, this says so *instead of* naming the level. Both
+        // together wrap onto a second line, and the level is already being said
+        // by the colour of the badge two inches to the right — whereas the fact
+        // that a rung is missing is said by nothing else on this screen.
+        let trailing = model.isRelighting
+            ? Text("Relighting").foregroundColor(model.streakLevel.tint)
+            : Text("\(model.streakLevel.name) streak").foregroundColor(model.streakLevel.tint)
+
+        return status
+            + Text("  ·  ").foregroundColor(Theme.faint)
+            + trailing
+    }
+
+    /// Days blocking has been left on, sat in the header rather than in the stack
+    /// of cards below it: it is a score, not a control.
+    ///
+    /// Tapping it opens the explanation. A number in a coloured pill is not
+    /// self-explanatory — it says something is being counted without saying what
+    /// earns it or what costs it — and the badge is the thing someone reaches for
+    /// when they want to know, so the badge is what answers.
+    ///
+    /// Shown even at zero, dimmed. A badge that only appears once you're winning
+    /// can't teach anyone that there is something to win.
+    private var streakBadge: some View {
+        let days = model.streakDays
+        let lit = days > 0
+        let tint = model.streakLevel.tint
+
+        return Button {
+            isStreakInfoPresented = true
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: lit ? "flame.fill" : "flame")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(lit ? tint : Theme.faint)
+                Text("\(days)")
+                    .font(Theme.display(17, .demiBold))
+                    .monospacedDigit()
+                    .foregroundColor(lit ? .white : Theme.faint)
+            }
+            .padding(.horizontal, 11)
+            // Matches the gear button, so the two sit on one line across the top.
+            .frame(height: 38)
+            .background(
+                lit ? tint.opacity(0.16) : Theme.card,
+                in: RoundedRectangle(cornerRadius: 13, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(
+            lit
+                ? "\(days) day \(model.streakLevel.name) streak"
+                : "No streak"
+        )
+        .accessibilityHint("Explains how streaks work")
     }
 
     /// Nothing here is really blocked, and a UI that looks identical to the real
@@ -88,60 +148,52 @@ struct HomeView: View {
         )
     }
 
-    // MARK: - Protection
+    // MARK: - Setup
 
-    private var blockedAppsCard: some View {
-        Card {
-            HStack(spacing: 10) {
-                IconTile(symbol: "square.grid.2x2.fill")
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Blocked apps").font(Theme.display(15, .medium))
-                    Text(model.blockedCount == 0
-                         ? "Nothing selected yet"
-                         : "\(model.blockedCount) apps, categories and sites")
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                }
-                Spacer()
-                chevron
-            }
-
-            Button {
-                model.isPickerPresented = true
-            } label: {
-                Text(model.blockedCount == 0 ? "Choose apps" : "Edit selection")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(
-                        Theme.accent.opacity(0.16),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
-                    .foregroundColor(Theme.accentSoft)
-            }
-        }
+    /// Home shows no way to stop blocking. That is the point: the switch and the
+    /// app list live in Settings, two taps and a deliberate detour away, because
+    /// a one-tap "off" beside a spent break budget is the same escape hatch that
+    /// makes Screen Time's own limits evaporate — you reach for it without ever
+    /// deciding to.
+    ///
+    /// What Home does still have to do is get someone who has not set up yet to
+    /// the place where they can. This card is the only route across, and it
+    /// disappears the moment protection is actually running.
+    private var needsSetup: Bool {
+        model.blockedCount == 0 || !model.state.blockingEnabled
     }
 
-    private var statusCard: some View {
-        Card {
-            Toggle(isOn: Binding(
-                get: { model.state.blockingEnabled },
-                set: { model.setBlocking($0) }
-            )) {
+    private var setupCard: some View {
+        NavigationLink {
+            SettingsView()
+        } label: {
+            Card {
                 HStack(spacing: 10) {
-                    IconTile(symbol: "lock.shield.fill")
+                    IconTile(symbol: model.blockedCount == 0 ? "square.grid.2x2.fill" : "lock.open.fill")
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Block these apps").font(Theme.display(15, .medium))
-                        Text("Stays on until you spend a break")
+                        Text(setupTitle).font(Theme.display(15, .medium))
+                        Text(setupSubtitle)
                             .font(.system(size: 11.5))
                             .foregroundColor(Theme.muted)
                     }
+                    Spacer()
+                    chevron
                 }
             }
-            .tint(Theme.accent)
-            .disabled(model.blockedCount == 0)
-            .opacity(model.blockedCount == 0 ? 0.45 : 1)
         }
+        .buttonStyle(.plain)
+    }
+
+    private var setupTitle: String {
+        model.blockedCount == 0 ? "Nothing is blocked yet" : "Blocking is off"
+    }
+
+    private var setupSubtitle: String {
+        if model.blockedCount == 0 {
+            return "Choose apps in Settings to start"
+        }
+        let count = model.blockedCount
+        return "\(count) app\(count == 1 ? "" : "s"), categories and sites are unprotected"
     }
 
     // MARK: - Breaks
@@ -308,7 +360,7 @@ struct HomeView: View {
     // MARK: - Footer
 
     private var footnote: some View {
-        Text("Breaks reset at midnight. Tap the gear to change how many you get and how long they last. You can also start one straight from the block screen without opening ScreenBlock.")
+        Text("Breaks reset at midnight. You can start one straight from the block screen without opening ScreenBlock. What's blocked, and whether blocking is on at all, live in Settings — out of reach of a moment you'd regret.")
             .font(.system(size: 11))
             .foregroundColor(Theme.faint)
             .multilineTextAlignment(.center)

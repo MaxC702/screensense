@@ -44,6 +44,29 @@ final class AppModel: ObservableObject {
         return selection.blockedItemCount
     }
     var isOnBreak: Bool { state.isOnBreak(now: now) }
+
+    /// Days blocking has been left switched on, counting today.
+    var streakDays: Int { state.streakDays(now: now) }
+    var bestStreak: Int { state.bestStreak }
+
+    /// What the budget on its own is worth, derived live — so tightening the
+    /// sliders promotes the flame while the user is watching. Settings shows this, because that
+    /// screen is about the budget.
+    var configuredStreakLevel: StreakLevel { StreakLevel.level(for: settings) }
+
+    /// What the flame actually shows: the budget's level, less whatever is still
+    /// owed for a lost run.
+    var streakLevel: StreakLevel {
+        configuredStreakLevel.lowered(by: state.activeLevelPenalty(now: now))
+    }
+
+    /// True only while the penalty is really costing a rung. At the bottom of
+    /// the ladder there is nothing left to dock, and announcing a demotion the
+    /// badge cannot show would be a lie.
+    var isRelighting: Bool { streakLevel < configuredStreakLevel }
+    var daysToRelight: Int { state.daysToRelight(now: now) }
+    var dailyUnblockedMinutes: Int { StreakLevel.dailyMinutes(for: settings) }
+    var minutesToNextLevel: Int? { StreakLevel.minutesToNextLevel(from: settings) }
     var isCoolingDown: Bool { state.isCoolingDown(now: now) }
     var breaksRemaining: Int { state.breaksRemaining(limit: settings.breaksPerDay) }
     var canStartBreak: Bool { breaksRemaining > 0 && !isCoolingDown && state.blockingEnabled }
@@ -141,7 +164,17 @@ final class AppModel: ObservableObject {
             return
         }
 
-        state = BreakStore.mutate { $0.blockingEnabled = enabled }
+        // The streak moves in the same read-modify-write as the switch itself,
+        // so there is no instant where the two disagree about whether a run is
+        // in progress.
+        state = BreakStore.mutate { state in
+            state.blockingEnabled = enabled
+            if enabled {
+                state.beginStreakIfNeeded()
+            } else {
+                state.endStreak()
+            }
+        }
 
         if enabled {
             if !state.isOnBreak(now: .now) { ShieldController.applyShield() }
