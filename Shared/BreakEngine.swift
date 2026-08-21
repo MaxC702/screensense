@@ -99,21 +99,19 @@ enum BreakEngine {
             return
         }
 
-        // The shield goes on FIRST. It is the only step the user is waiting for,
-        // and everything below it — a UserDefaults round trip, then tearing down
-        // two DeviceActivity registrations — measured 31 seconds inside the
-        // monitor extension. Doing that work first is what made a 1-minute break
-        // run for a minute and a half.
-        if existing.blockingEnabled {
-            ShieldController.applyShield(source: source)
-        } else {
-            BreakLog.record("endBreak (\(source)): blocking is off, nothing to re-apply", source: source)
-        }
-
         let settings = BreakStore.loadSettings()
 
-        // Clear `breakEndsAt` *before* stopping monitoring, so that the re-entrant
-        // call described above hits the guard at the top and returns immediately.
+        // The cooldown is recorded BEFORE the shield goes up, because putting the
+        // shield up is what makes the system ask `ShieldConfig` to draw the block
+        // screen — and the system caches that answer for as long as the shield
+        // stands. Applying first meant the block screen was always drawn from a
+        // state where the cooldown did not exist yet, so it offered "Take a
+        // 5-minute break" for the whole cooldown and never said how long the wait
+        // was.
+        //
+        // This also clears `breakEndsAt` ahead of `stopMonitoring` below, so the
+        // re-entrant call that teardown provokes hits the guard at the top and
+        // returns immediately.
         BreakStore.mutate(now: now) { state in
             guard let scheduledEnd = state.breakEndsAt else { return }
 
@@ -126,6 +124,21 @@ enum BreakEngine {
             state.cooldownUntil = actualEnd
                 .addingTimeInterval(TimeInterval(settings.cooldownMinutes * 60))
             state.breakEndsAt = nil
+        }
+
+        // Now the shield, which is the only step the user is waiting for. What
+        // must stay below it is `stopMonitoring`: tearing down two DeviceActivity
+        // registrations measured 31 seconds inside the monitor extension, and
+        // doing that first is what once made a 1-minute break run for a minute
+        // and a half. The write above is a single defaults round trip.
+        //
+        // Being killed between the write and this line would leave the apps open
+        // with the state saying the break is over. `reconcile` re-applies on the
+        // next foreground, which is the same net that covers a missed trigger.
+        if existing.blockingEnabled {
+            ShieldController.applyShield(source: source)
+        } else {
+            BreakLog.record("endBreak (\(source)): blocking is off, nothing to re-apply", source: source)
         }
 
         DeviceActivityCenter().stopMonitoring([.breakWindow, .breakEnd])
@@ -150,6 +163,14 @@ enum BreakEngine {
         guard state.blockingEnabled else {
             ShieldController.clearShield()
             return
+        }
+
+        // Blocking is on, so a run is in progress by definition. It won't be
+        // recorded yet for anyone upgrading from a build that predates streaks,
+        // and a switch that is plainly on next to a streak of zero reads as a
+        // bug — so start the count from the first foreground instead.
+        if state.streakStartedOn == nil {
+            BreakStore.mutate(now: now) { $0.beginStreakIfNeeded(now: now) }
         }
 
         if state.breakEndsAt != nil, !state.isOnBreak(now: now) {
