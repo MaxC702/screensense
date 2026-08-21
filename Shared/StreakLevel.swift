@@ -80,13 +80,20 @@ enum StreakLevel: Int, CaseIterable, Comparable {
         settings.breaksPerDay * settings.breakMinutes
     }
 
-    /// The tightest ceiling the budget still fits under.
-    static func level(for settings: BreakSettings) -> StreakLevel {
-        let minutes = dailyMinutes(for: settings)
-        return allCases.reversed().first { level in
+    /// The tightest ceiling a figure of unblocked minutes a day still fits under.
+    static func level(forDailyMinutes minutes: Double) -> StreakLevel {
+        allCases.reversed().first { level in
             guard let ceiling = level.ceiling else { return true }
-            return minutes <= ceiling
+            return minutes <= Double(ceiling)
         } ?? .ember
+    }
+
+    /// What the budget alone is worth — the level you would sit at if you spent
+    /// every minute you allowed yourself. The floor under the earned level, and
+    /// what a brand new streak is judged by until it has a finished day on the
+    /// board.
+    static func level(for settings: BreakSettings) -> StreakLevel {
+        level(forDailyMinutes: Double(dailyMinutes(for: settings)))
     }
 
     /// Minutes a day that would have to come off the budget to reach the next

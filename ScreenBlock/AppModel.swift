@@ -49,22 +49,73 @@ final class AppModel: ObservableObject {
     var streakDays: Int { state.streakDays(now: now) }
     var bestStreak: Int { state.bestStreak }
 
-    /// What the budget on its own is worth, derived live — so tightening the
-    /// sliders promotes the flame while the user is watching. Settings shows this, because that
-    /// screen is about the budget.
+    /// What the budget on its own is worth — the level of someone who spends
+    /// every minute they allow themselves. Settings shows this, because that is
+    /// the screen that sets it, and it moves under the sliders as they drag.
     var configuredStreakLevel: StreakLevel { StreakLevel.level(for: settings) }
 
-    /// What the flame actually shows: the budget's level, less whatever is still
-    /// owed for a lost run.
+    /// What the last week of finished days actually came to.
+    ///
+    /// This is the number the flame is really about. A generous budget spent
+    /// sparingly outranks a tight one spent to the last minute, because a budget
+    /// is a promise and this is the record.
+    ///
+    /// Falls back to the budget until a day has finished — with nothing on the
+    /// board, what you set for yourself is the only evidence there is.
+    var earnedStreakLevel: StreakLevel {
+        guard let average = averageUnblockedMinutes else { return configuredStreakLevel }
+        return StreakLevel.level(forDailyMinutes: average)
+    }
+
+    /// Unblocked minutes a day across the finished days of this run; `nil` while
+    /// the run is still on its first day.
+    var averageUnblockedMinutes: Double? { state.averageUnblockedMinutes(now: now) }
+
+    /// Minutes already spent today, which the average deliberately excludes.
+    var minutesUsedToday: Int { state.unblocked(on: BreakState.dayKey(for: now)) }
+
+    /// What the flame shows: what was earned, less whatever is still owed for a
+    /// lost run.
     var streakLevel: StreakLevel {
-        configuredStreakLevel.lowered(by: state.activeLevelPenalty(now: now))
+        earnedStreakLevel.lowered(by: state.activeLevelPenalty(now: now))
     }
 
     /// True only while the penalty is really costing a rung. At the bottom of
     /// the ladder there is nothing left to dock, and announcing a demotion the
     /// badge cannot show would be a lie.
-    var isRelighting: Bool { streakLevel < configuredStreakLevel }
+    var isRelighting: Bool { streakLevel < earnedStreakLevel }
     var daysToRelight: Int { state.daysToRelight(now: now) }
+
+    /// One point per day for the graph, oldest first. A `nil` level is a day the
+    /// app cannot speak for, and the line breaks across it rather than guessing.
+    func dailyLevels(days: Int) -> [DayPoint] {
+        let calendar = Calendar.current
+        return stride(from: days - 1, through: 0, by: -1).compactMap { back -> DayPoint? in
+            guard let date = calendar.date(byAdding: .day, value: -back, to: now) else { return nil }
+            let key = BreakState.dayKey(for: date, calendar: calendar)
+            guard state.hasRecord(for: date, now: now, calendar: calendar) else {
+                return DayPoint(date: date, key: key, minutes: nil, level: nil)
+            }
+            let minutes = state.unblocked(on: key)
+            return DayPoint(
+                date: date,
+                key: key,
+                minutes: minutes,
+                level: StreakLevel.level(forDailyMinutes: Double(minutes))
+            )
+        }
+    }
+
+    /// One day on the streak graph.
+    struct DayPoint: Identifiable {
+        let date: Date
+        let key: String
+        /// `nil` on a day the app was not watching.
+        let minutes: Int?
+        let level: StreakLevel?
+
+        var id: String { key }
+    }
     var dailyUnblockedMinutes: Int { StreakLevel.dailyMinutes(for: settings) }
     var minutesToNextLevel: Int? { StreakLevel.minutesToNextLevel(from: settings) }
     var isCoolingDown: Bool { state.isCoolingDown(now: now) }

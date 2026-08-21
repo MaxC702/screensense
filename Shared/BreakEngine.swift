@@ -69,6 +69,7 @@ enum BreakEngine {
         try armMonitoring(minutes: duration, selection: selection, now: now)
 
         state.breaksUsed += 1
+        state.breakStartedAt = now
         state.breakEndsAt = now.addingTimeInterval(TimeInterval(duration * 60))
         BreakStore.save(state)
 
@@ -123,6 +124,20 @@ enum BreakEngine {
             let actualEnd = min(scheduledEnd, now)
             state.cooldownUntil = actualEnd
                 .addingTimeInterval(TimeInterval(settings.cooldownMinutes * 60))
+
+            // Charge the time actually taken. Breaks written by a build that
+            // predates `breakStartedAt` have no start to measure from, so they
+            // fall back to the length that was scheduled — the same number the
+            // old build would have implied.
+            let startedAt = state.breakStartedAt
+                ?? scheduledEnd.addingTimeInterval(-TimeInterval(settings.breakMinutes * 60))
+            let elapsed = max(0, actualEnd.timeIntervalSince(startedAt))
+            state.recordUnblocked(
+                minutes: Int((elapsed / 60).rounded()),
+                startedOn: BreakState.dayKey(for: startedAt)
+            )
+
+            state.breakStartedAt = nil
             state.breakEndsAt = nil
         }
 

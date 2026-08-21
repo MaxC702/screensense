@@ -28,6 +28,20 @@ enum BreakRules {
     /// window that backs it up.
     static let minimumScheduleMinutes = 15
 
+    /// Days of per-day usage kept on disk. Thirty is enough to draw a graph
+    /// with room to spare, and thirty small integers is nothing next to the
+    /// payload this already round-trips on every read.
+    static let usageHistoryDays = 30
+
+    /// Days of finished usage the flame's level is averaged over.
+    ///
+    /// A single day would make the ladder thrash — every morning starts at zero
+    /// minutes, which is a perfect score nobody has earned yet, and every
+    /// afternoon would demote you for spending what you are allowed. A week is
+    /// long enough that one heavy day does not undo a good run, and short enough
+    /// that a change in habit shows up while you still remember making it.
+    static let usageWindowDays = 7
+
     static func clampMinutes(_ minutes: Int) -> Int {
         min(max(minutes, minMinutes), maxMinutes)
     }
@@ -48,6 +62,11 @@ struct BreakState: Codable, Equatable {
     var breaksUsed: Int
     /// Wall-clock deadline for the running break; `nil` when no break is active.
     var breakEndsAt: Date?
+    /// When the running break began, so what gets charged is the time actually
+    /// taken rather than the length that was scheduled. Ending a break early
+    /// still spends the break — it just costs fewer minutes, which is the whole
+    /// difference between a budget and a record of what you did.
+    var breakStartedAt: Date?
     /// Wall clock instant before which no new break may start. Set when a break
     /// ends. Optional on purpose: Swift's synthesized decoder uses
     /// `decodeIfPresent` for optionals, so payloads saved before cooldowns
@@ -74,25 +93,35 @@ struct BreakState: Codable, Equatable {
     /// could be wiped out by dragging a slider, which is the one place it must
     /// not be reachable from.
     var levelPenaltyRungs: Int
+    /// Minutes actually unblocked, per day.
+    ///
+    /// Keyed by day stamp rather than kept as an array, so a day on which no
+    /// break was taken simply has no entry and reads as zero. There is no gap to
+    /// align and nothing to write at midnight.
+    var unblockedMinutes: [String: Int]
 
     init(
         dayKey: String = BreakState.dayKey(for: .now),
         breaksUsed: Int = 0,
         breakEndsAt: Date? = nil,
+        breakStartedAt: Date? = nil,
         cooldownUntil: Date? = nil,
         blockingEnabled: Bool = false,
         streakStartedOn: Date? = nil,
         bestStreak: Int = 0,
-        levelPenaltyRungs: Int = 0
+        levelPenaltyRungs: Int = 0,
+        unblockedMinutes: [String: Int] = [:]
     ) {
         self.dayKey = dayKey
         self.breaksUsed = breaksUsed
         self.breakEndsAt = breakEndsAt
+        self.breakStartedAt = breakStartedAt
         self.cooldownUntil = cooldownUntil
         self.blockingEnabled = blockingEnabled
         self.streakStartedOn = streakStartedOn
         self.bestStreak = bestStreak
         self.levelPenaltyRungs = levelPenaltyRungs
+        self.unblockedMinutes = unblockedMinutes
     }
 
     /// Hand-written for the same reason as `BreakSettings`: the synthesized
@@ -106,11 +135,13 @@ struct BreakState: Codable, Equatable {
             ?? BreakState.dayKey(for: .now)
         breaksUsed = try container.decodeIfPresent(Int.self, forKey: .breaksUsed) ?? 0
         breakEndsAt = try container.decodeIfPresent(Date.self, forKey: .breakEndsAt)
+        breakStartedAt = try container.decodeIfPresent(Date.self, forKey: .breakStartedAt)
         cooldownUntil = try container.decodeIfPresent(Date.self, forKey: .cooldownUntil)
         blockingEnabled = try container.decodeIfPresent(Bool.self, forKey: .blockingEnabled) ?? false
         streakStartedOn = try container.decodeIfPresent(Date.self, forKey: .streakStartedOn)
         bestStreak = max(0, try container.decodeIfPresent(Int.self, forKey: .bestStreak) ?? 0)
         levelPenaltyRungs = max(0, try container.decodeIfPresent(Int.self, forKey: .levelPenaltyRungs) ?? 0)
+        unblockedMinutes = try container.decodeIfPresent([String: Int].self, forKey: .unblockedMinutes) ?? [:]
     }
 
     // MARK: - Derived
@@ -235,5 +266,68 @@ struct BreakState: Codable, Equatable {
         guard today != dayKey else { return }
         dayKey = today
         breaksUsed = 0
+        pruneUsageHistory(now: now)
+    }
+
+    // MARK: - What the days actually cost
+
+    /// Charges `minutes` to the day the break *started* on.
+    ///
+    /// A break running across midnight belongs to the evening it began, not to
+    /// the small hours it finished in — that is the day whose habit it describes.
+    mutating func recordUnblocked(minutes: Int, startedOn key: String) {
+        guard minutes > 0 else { return }
+        unblockedMinutes[key, default: 0] += minutes
+    }
+
+    func unblocked(on key: String) -> Int { unblockedMinutes[key] ?? 0 }
+
+    mutating func pruneUsageHistory(now: Date = .now, calendar: Calendar = .current) {
+        let keep = Set(BreakState.dayKeys(endingAt: now, count: BreakRules.usageHistoryDays, calendar: calendar))
+        unblockedMinutes = unblockedMinutes.filter { keep.contains($0.key) }
+    }
+
+    /// Day stamps for the last `count` days, oldest first, ending with `now`.
+    static func dayKeys(
+        endingAt now: Date,
+        count: Int,
+        calendar: Calendar = .current
+    ) -> [String] {
+        stride(from: count - 1, through: 0, by: -1).compactMap { back in
+            calendar.date(byAdding: .day, value: -back, to: now)
+                .map { dayKey(for: $0, calendar: calendar) }
+        }
+    }
+
+    /// Average unblocked minutes across the *finished* days of the current run,
+    /// up to a week of them.
+    ///
+    /// `nil` until at least one day has finished. Today is deliberately left out
+    /// of it: a day in progress has spent less than it is going to, so counting
+    /// it would hand out a level at breakfast and take it away by lunch.
+    func averageUnblockedMinutes(now: Date = .now, calendar: Calendar = .current) -> Double? {
+        let finished = max(0, streakDays(now: now, calendar: calendar) - 1)
+        let window = min(finished, BreakRules.usageWindowDays)
+        guard window > 0 else { return nil }
+
+        let keys = (1...window).compactMap { back in
+            calendar.date(byAdding: .day, value: -back, to: now)
+                .map { BreakState.dayKey(for: $0, calendar: calendar) }
+        }
+        guard !keys.isEmpty else { return nil }
+        return Double(keys.reduce(0) { $0 + unblocked(on: $1) }) / Double(keys.count)
+    }
+
+    /// Whether a day is one this app can speak for: either something was spent
+    /// on it, or it falls inside the run that is currently going.
+    ///
+    /// Days before any of that are not zero-minute triumphs, they are days the
+    /// app was not watching — and drawing them at the top of the graph would
+    /// credit the user for a week they spent on their phone.
+    func hasRecord(for date: Date, now: Date = .now, calendar: Calendar = .current) -> Bool {
+        if unblockedMinutes[BreakState.dayKey(for: date, calendar: calendar)] != nil { return true }
+        guard let streakStartedOn else { return false }
+        return calendar.startOfDay(for: date) >= calendar.startOfDay(for: streakStartedOn)
+            && calendar.startOfDay(for: date) <= calendar.startOfDay(for: now)
     }
 }

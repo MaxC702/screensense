@@ -193,7 +193,7 @@ struct SettingsView: View {
             HStack(spacing: 10) {
                 IconTile(symbol: "flame.fill")
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Streak level").font(Theme.display(15, .medium))
+                    Text("Daily allowance").font(Theme.display(15, .medium))
                     Text("\(model.dailyUnblockedMinutes) unblocked minute\(model.dailyUnblockedMinutes == 1 ? "" : "s") a day")
                         .font(.system(size: 11.5))
                         .foregroundColor(Theme.muted)
@@ -213,13 +213,29 @@ struct SettingsView: View {
                 .font(.system(size: 11))
                 .foregroundColor(Theme.muted)
 
-            // …and says so explicitly when the flame is not currently showing it.
-            // Without this the card and the badge would disagree on screen with
-            // nothing to explain the gap.
+            // The budget is a worst case, and since the flame started following
+            // what is actually spent the two are usually different. Saying so
+            // here is what stops this card and the Streak tab looking like they
+            // disagree.
+            Text(earnedNote)
+                .font(.system(size: 11))
+                .foregroundColor(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
             if model.isRelighting {
                 note("A lost run has your flame at \(model.streakLevel.name) for now. \(relightHint)")
             }
         }
+    }
+
+    /// Ties the slider to the thing it does not control, so nobody drags this
+    /// expecting the flame on the other tab to follow.
+    private var earnedNote: String {
+        guard let average = model.averageUnblockedMinutes else {
+            return "That is the most you can spend. Once you have a full day behind you, the flame follows what you actually spend instead."
+        }
+        let spent = average < 10 ? String(format: "%.1f", average) : "\(Int(average.rounded()))"
+        return "That is the most you can spend. You are actually spending \(spent) min a day, which is \(model.earnedStreakLevel.name)."
     }
 
     private var relightHint: String {
