@@ -147,6 +147,45 @@ struct StreakLadder: View {
     }
 }
 
+/// How much is left in the current rung, drawn as a little upright cell.
+///
+/// The ladder says which rung you are on; this says where you are standing on
+/// it. Full means the minutes sit at the strict end of the band and the rung is
+/// not going anywhere. Nearly empty means one more break's worth of average and
+/// the flame drops.
+///
+/// It takes the level's own colour rather than the usual green-to-red of a
+/// battery, because red already means Ember here and a red gauge on a gold Blaze
+/// would be reading out two different things at once.
+struct LevelBattery: View {
+    let charge: Double
+    let tint: Color
+    var size = CGSize(width: 8, height: 17)
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 2.5, style: .continuous) }
+
+    var body: some View {
+        VStack(spacing: 1.5) {
+            Capsule()
+                .fill(tint.opacity(0.65))
+                .frame(width: size.width * 0.45, height: 1.8)
+
+            ZStack(alignment: .bottom) {
+                shape.fill(tint.opacity(0.13))
+                // A sliver at the bottom even when empty, so the gauge reads as
+                // "almost gone" rather than as a control that failed to draw.
+                shape.fill(tint)
+                    .frame(height: max(1.5, size.height * min(1, max(0, charge))))
+            }
+            .frame(width: size.width, height: size.height)
+            .clipShape(shape)
+            .overlay(shape.stroke(tint.opacity(0.5), lineWidth: 1))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Rung \(Int((min(1, max(0, charge)) * 100).rounded())) percent")
+    }
+}
+
 /// Reusable rounded container.
 struct Card<Content: View>: View {
     @ViewBuilder var content: Content

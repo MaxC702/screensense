@@ -80,6 +80,24 @@ final class AppModel: ObservableObject {
         earnedStreakLevel.lowered(by: state.activeLevelPenalty(now: now))
     }
 
+    /// How full the current rung is, 0...1; `nil` when no run is going and there
+    /// are no minutes to place.
+    ///
+    /// Measured against the level actually on show, so during a relight — when
+    /// the flame sits a rung below what the minutes earn — it reads full, which
+    /// is true: those minutes are comfortably inside that band.
+    var levelCharge: Double? {
+        guard let average = averageUnblockedMinutes else { return nil }
+        return streakLevel.chargeFraction(atDailyMinutes: average)
+    }
+
+    /// Minutes a day still available before the flame drops a rung; `nil` at the
+    /// bottom of the ladder, or with no run going.
+    var levelHeadroom: Double? {
+        guard let average = averageUnblockedMinutes else { return nil }
+        return streakLevel.headroom(atDailyMinutes: average)
+    }
+
     /// True only while the penalty is really costing a rung. At the bottom of
     /// the ladder there is nothing left to dock, and announcing a demotion the
     /// badge cannot show would be a lie.

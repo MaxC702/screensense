@@ -48,6 +48,37 @@ enum StreakLevel: Int, CaseIterable, Comparable {
     }
 
     var next: StreakLevel? { StreakLevel(rawValue: rawValue + 1) }
+    /// The looser rung, the one a level falls to. `nil` at the bottom.
+    var previous: StreakLevel? { StreakLevel(rawValue: rawValue - 1) }
+
+    // MARK: - Position within a rung
+
+    /// The strict end of this level's band — the ceiling of the rung above it,
+    /// which is the point at which you stop being this level and start being a
+    /// better one. Zero for the top rung, which has nowhere further to go.
+    var floor: Int { next?.ceiling ?? 0 }
+
+    /// How much is left in the tank at `minutes` a day: 1 at the strict end of
+    /// the band, 0 sitting on the ceiling with one more minute about to cost a
+    /// rung.
+    ///
+    /// Ember reads full, because Ember is the floor of the ladder and there is
+    /// nothing under it to fall to. The gauge measures the drop, and at the
+    /// bottom there is no drop — the dull red it is drawn in is what says this
+    /// is not somewhere to be pleased about being.
+    func chargeFraction(atDailyMinutes minutes: Double) -> Double {
+        guard let ceiling else { return 1 }
+        let span = Double(ceiling - floor)
+        guard span > 0 else { return 1 }
+        return min(1, max(0, (Double(ceiling) - minutes) / span))
+    }
+
+    /// Minutes a day that could still be spent before this level gives way;
+    /// `nil` at the bottom, where nothing gives way.
+    func headroom(atDailyMinutes minutes: Double) -> Double? {
+        guard let ceiling else { return nil }
+        return max(0, Double(ceiling) - minutes)
+    }
 
     // MARK: - Losing a run
 

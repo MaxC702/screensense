@@ -112,8 +112,16 @@ struct HomeView: View {
                     .font(Theme.display(17, .demiBold))
                     .monospacedDigit()
                     .foregroundColor(lit ? .white : Theme.faint)
+
+                // Rides inside the badge rather than beside it: it qualifies the
+                // flame, and a gauge floating on its own next to a number would
+                // be one more unexplained thing on the busiest line of the screen.
+                if let charge = model.levelCharge, lit {
+                    LevelBattery(charge: charge, tint: tint)
+                        .padding(.leading, 1)
+                }
             }
-            .padding(.horizontal, 11)
+            .padding(.horizontal, 10)
             // Matches the gear button, so the two sit on one line across the top.
             .frame(height: 38)
             .background(
@@ -122,12 +130,17 @@ struct HomeView: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(
-            lit
-                ? "\(days) day \(model.streakLevel.name) streak"
-                : "No streak"
-        )
+        .accessibilityLabel(badgeLabel)
         .accessibilityHint("Opens the streak tab")
+    }
+
+    private var badgeLabel: String {
+        guard model.streakDays > 0 else { return "No streak" }
+        let base = "\(model.streakDays) day \(model.streakLevel.name) streak"
+        guard let headroom = model.levelHeadroom, let below = model.streakLevel.previous else {
+            return base
+        }
+        return base + ", \(String(format: "%.0f", headroom)) minutes a day before it drops to \(below.name)"
     }
 
     /// Nothing here is really blocked, and a UI that looks identical to the real

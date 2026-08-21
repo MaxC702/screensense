@@ -57,12 +57,32 @@ struct StreakView: View {
 
             StreakLadder(level: level, target: model.earnedStreakLevel)
 
+            if let charge = model.levelCharge, days > 0 {
+                HStack(spacing: 9) {
+                    LevelBattery(charge: charge, tint: level.tint, size: CGSize(width: 9, height: 19))
+                    Text(chargeCaption)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+            }
+
             if model.isRelighting {
                 Text("Relighting — \(model.daysToRelight) more day\(model.daysToRelight == 1 ? "" : "s") back to \(model.earnedStreakLevel.name).")
                     .font(.system(size: 11.5))
                     .foregroundColor(Theme.muted)
             }
         }
+    }
+
+    /// Says what the gauge in the badge means, in the one place there is room to.
+    private var chargeCaption: String {
+        guard let headroom = model.levelHeadroom, let below = model.streakLevel.previous else {
+            return "Nothing below \(model.streakLevel.name) to drop to."
+        }
+        let room = headroom < 10 ? String(format: "%.1f", headroom) : "\(Int(headroom.rounded()))"
+        return "\(room) more min a day and \(model.streakLevel.name) gives way to \(below.name)."
     }
 
     // MARK: - Graph
