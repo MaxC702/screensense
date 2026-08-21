@@ -5,8 +5,11 @@ import Foundation
 ///
 /// Extensions are short-lived processes that the system spawns, runs for a few
 /// hundred milliseconds, and kills. There is deliberately no in-memory cache
-/// here: every read goes to disk, because a cached value in one process is
-/// always stale the moment another process writes.
+/// here, and every access goes through `freshData`/`setDurable` rather than
+/// plain `UserDefaults` — because on both sides of the seam the default
+/// behaviour is wrong for this shape of app. A cached value in one process is
+/// stale the moment another process writes, and a write issued by a process the
+/// system is about to kill may never leave it.
 enum BreakStore {
     private static let stateKey = "screenblock.state.v1"
     private static let selectionKey = "screenblock.selection.v1"
@@ -15,7 +18,7 @@ enum BreakStore {
     // MARK: - Settings
 
     static func loadSettings() -> BreakSettings {
-        guard let data = UserDefaults.shared.data(forKey: settingsKey),
+        guard let data = UserDefaults.shared.freshData(forKey: settingsKey),
               let settings = try? JSONDecoder().decode(BreakSettings.self, from: data)
         else { return BreakSettings() }
         return settings
@@ -23,14 +26,14 @@ enum BreakStore {
 
     static func saveSettings(_ settings: BreakSettings) {
         guard let data = try? JSONEncoder().encode(settings) else { return }
-        UserDefaults.shared.set(data, forKey: settingsKey)
+        UserDefaults.shared.setDurable(data, forKey: settingsKey)
     }
 
     // MARK: - Break state
 
     static func loadState(now: Date = .now) -> BreakState {
         var state: BreakState
-        if let data = UserDefaults.shared.data(forKey: stateKey),
+        if let data = UserDefaults.shared.freshData(forKey: stateKey),
            let decoded = try? JSONDecoder().decode(BreakState.self, from: data) {
             state = decoded
         } else {
@@ -46,7 +49,7 @@ enum BreakStore {
 
     static func save(_ state: BreakState) {
         guard let data = try? JSONEncoder().encode(state) else { return }
-        UserDefaults.shared.set(data, forKey: stateKey)
+        UserDefaults.shared.setDurable(data, forKey: stateKey)
     }
 
     /// Read-modify-write in one call so callers can't accidentally save a state
@@ -66,7 +69,7 @@ enum BreakStore {
     /// logged, or moved to another device, which is the whole privacy contract
     /// of FamilyControls.
     static func loadSelection() -> FamilyActivitySelection {
-        guard let data = UserDefaults.shared.data(forKey: selectionKey),
+        guard let data = UserDefaults.shared.freshData(forKey: selectionKey),
               let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
         else { return FamilyActivitySelection() }
         return selection
@@ -74,7 +77,7 @@ enum BreakStore {
 
     static func saveSelection(_ selection: FamilyActivitySelection) {
         guard let data = try? JSONEncoder().encode(selection) else { return }
-        UserDefaults.shared.set(data, forKey: selectionKey)
+        UserDefaults.shared.setDurable(data, forKey: selectionKey)
     }
 }
 

@@ -40,17 +40,17 @@ enum BreakLog {
             entries.removeFirst(entries.count - limit)
         }
         guard let data = try? JSONEncoder().encode(entries) else { return }
-        UserDefaults.shared.set(data, forKey: key)
+        UserDefaults.shared.setDurable(data, forKey: key)
     }
 
     static func load() -> [Entry] {
-        guard let data = UserDefaults.shared.data(forKey: key),
+        guard let data = UserDefaults.shared.freshData(forKey: key),
               let entries = try? JSONDecoder().decode([Entry].self, from: data)
         else { return [] }
         return entries
     }
 
     static func clear() {
-        UserDefaults.shared.removeObject(forKey: key)
+        UserDefaults.shared.setDurable(nil, forKey: key)
     }
 }

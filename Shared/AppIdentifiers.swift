@@ -36,3 +36,36 @@ extension UserDefaults {
         return defaults
     }()
 }
+
+extension UserDefaults {
+    /// Reads the shared container, defeating this process's own cache.
+    ///
+    /// `UserDefaults` serves reads from an in-process cache that another
+    /// process's write does not invalidate. The system keeps a shield extension
+    /// warm between the times it draws the block screen, so that process goes on
+    /// reporting whatever it read when it was first spawned — which is how the
+    /// block screen came to offer a break budget that had already been spent.
+    func freshData(forKey key: String) -> Data? {
+        synchronize()
+        return data(forKey: key)
+    }
+
+    /// Writes the shared container and doesn't return until the value is there.
+    ///
+    /// `set` hands the value to `cfprefsd` asynchronously. The shield-action
+    /// extension spends a break and is killed within milliseconds of returning
+    /// its response — early enough to lose the increment, so the break was taken
+    /// but never counted.
+    ///
+    /// This is the case `synchronize()` still exists for. It is discouraged, not
+    /// deprecated, and there is no replacement for an App Group shared between a
+    /// long-lived app and processes the system may kill at any moment.
+    func setDurable(_ value: Any?, forKey key: String) {
+        if let value {
+            set(value, forKey: key)
+        } else {
+            removeObject(forKey: key)
+        }
+        synchronize()
+    }
+}
