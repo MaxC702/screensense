@@ -372,7 +372,7 @@ struct HomeView: View {
     // MARK: - Footer
 
     private var footnote: some View {
-        Text("Breaks reset at midnight. You can start one straight from the block screen without opening ScreenBlock. What's blocked, and whether blocking is on at all, live in Settings — out of reach of a moment you'd regret.")
+        Text("Breaks reset at midnight. You can start one straight from the block screen without opening ScreenBlock. What's blocked, and whether blocking is on at all, live in Settings.")
             .font(.system(size: 11))
             .foregroundColor(Theme.faint)
             .multilineTextAlignment(.center)

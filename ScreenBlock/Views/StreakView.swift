@@ -59,7 +59,7 @@ struct StreakView: View {
 
             if let charge = model.levelCharge, days > 0 {
                 HStack(spacing: 9) {
-                    LevelBattery(charge: charge, tint: level.tint, size: CGSize(width: 9, height: 19))
+                    LevelBattery(charge: charge, tint: level.tint, size: CGSize(width: 9, height: 21))
                     Text(chargeCaption)
                         .font(.system(size: 11.5))
                         .foregroundColor(Theme.muted)

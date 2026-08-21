@@ -154,33 +154,31 @@ struct StreakLadder: View {
 /// not going anywhere. Nearly empty means one more break's worth of average and
 /// the flame drops.
 ///
-/// It takes the level's own colour rather than the usual green-to-red of a
-/// battery, because red already means Ember here and a red gauge on a gold Blaze
-/// would be reading out two different things at once.
+/// Every part of it — fill, track and outline — is the current level's own
+/// colour rather than the usual green-to-red of a battery, because red already
+/// means Ember here and a red gauge on a gold Blaze would be reading out two
+/// different things at once.
 struct LevelBattery: View {
     let charge: Double
     let tint: Color
-    var size = CGSize(width: 8, height: 17)
+    var size = CGSize(width: 8, height: 19)
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 2.5, style: .continuous) }
 
     var body: some View {
-        VStack(spacing: 1.5) {
-            Capsule()
-                .fill(tint.opacity(0.65))
-                .frame(width: size.width * 0.45, height: 1.8)
-
-            ZStack(alignment: .bottom) {
-                shape.fill(tint.opacity(0.13))
-                // A sliver at the bottom even when empty, so the gauge reads as
-                // "almost gone" rather than as a control that failed to draw.
-                shape.fill(tint)
-                    .frame(height: max(1.5, size.height * min(1, max(0, charge))))
-            }
-            .frame(width: size.width, height: size.height)
-            .clipShape(shape)
-            .overlay(shape.stroke(tint.opacity(0.5), lineWidth: 1))
+        ZStack(alignment: .bottom) {
+            // The unfilled part stays tinted rather than going grey, so the rung's
+            // colour reads off the gauge even when there is barely any charge in
+            // it — a nearly empty Blaze should still look like Blaze.
+            shape.fill(tint.opacity(0.22))
+            // A sliver at the bottom even when empty, so it reads as "almost
+            // gone" rather than as something that failed to draw.
+            shape.fill(tint)
+                .frame(height: max(1.5, size.height * min(1, max(0, charge))))
         }
+        .frame(width: size.width, height: size.height)
+        .clipShape(shape)
+        .overlay(shape.stroke(tint.opacity(0.6), lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Rung \(Int((min(1, max(0, charge)) * 100).rounded())) percent")
     }
