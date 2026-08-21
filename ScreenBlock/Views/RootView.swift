@@ -2,13 +2,30 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var tab: Tab = .breaks
+
+    /// Two tabs, not three. Settings stays behind the gear on the home screen,
+    /// because it holds the switch that turns blocking off — and putting that a
+    /// thumb's reach from every screen would undo the point of moving it there.
+    enum Tab: Hashable {
+        case breaks
+        case streak
+    }
 
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
 
             if model.isAuthorized {
-                HomeView()
+                TabView(selection: $tab) {
+                    HomeView(onShowStreak: { tab = .streak })
+                        .tabItem { Label("Breaks", systemImage: "hourglass") }
+                        .tag(Tab.breaks)
+
+                    StreakView()
+                        .tabItem { Label("Streak", systemImage: "flame.fill") }
+                        .tag(Tab.streak)
+                }
             } else {
                 PermissionView()
             }

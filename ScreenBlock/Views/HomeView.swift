@@ -2,7 +2,11 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var isStreakInfoPresented = false
+
+    /// Tapping the flame goes to its tab. The badge is the obvious handle for
+    /// "tell me about this", and it would be strange for it to open a copy of a
+    /// screen the tab bar already has.
+    let onShowStreak: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -25,9 +29,6 @@ struct HomeView: View {
             .background(Theme.background.ignoresSafeArea())
             // Hidden only for this screen; SettingsView brings its own bar back.
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $isStreakInfoPresented) {
-                StreakInfoView().environmentObject(model)
-            }
         }
         .tint(Theme.accentSoft)
     }
@@ -90,7 +91,7 @@ struct HomeView: View {
     /// Days blocking has been left on, sat in the header rather than in the stack
     /// of cards below it: it is a score, not a control.
     ///
-    /// Tapping it opens the explanation. A number in a coloured pill is not
+    /// Tapping it opens the streak's tab. A number in a coloured pill is not
     /// self-explanatory — it says something is being counted without saying what
     /// earns it or what costs it — and the badge is the thing someone reaches for
     /// when they want to know, so the badge is what answers.
@@ -102,9 +103,7 @@ struct HomeView: View {
         let lit = days > 0
         let tint = model.streakLevel.tint
 
-        return Button {
-            isStreakInfoPresented = true
-        } label: {
+        return Button(action: onShowStreak) {
             HStack(spacing: 5) {
                 Image(systemName: lit ? "flame.fill" : "flame")
                     .font(.system(size: 13, weight: .semibold))
@@ -128,7 +127,7 @@ struct HomeView: View {
                 ? "\(days) day \(model.streakLevel.name) streak"
                 : "No streak"
         )
-        .accessibilityHint("Explains how streaks work")
+        .accessibilityHint("Opens the streak tab")
     }
 
     /// Nothing here is really blocked, and a UI that looks identical to the real
