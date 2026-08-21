@@ -232,7 +232,7 @@ struct SettingsView: View {
     /// expecting the flame on the other tab to follow.
     private var earnedNote: String {
         guard let average = model.averageUnblockedMinutes else {
-            return "That is the most you can spend. Once you have a full day behind you, the flame follows what you actually spend instead."
+            return "That is the most you can spend. The flame follows what you actually spend, which needs blocking switched on to mean anything."
         }
         let spent = average < 10 ? String(format: "%.1f", average) : "\(Int(average.rounded()))"
         return "That is the most you can spend. You are actually spending \(spent) min a day, which is \(model.earnedStreakLevel.name)."

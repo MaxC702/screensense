@@ -299,18 +299,26 @@ struct BreakState: Codable, Equatable {
         }
     }
 
-    /// Average unblocked minutes across the *finished* days of the current run,
-    /// up to a week of them.
+    /// Average unblocked minutes across the days of the current run, up to a
+    /// week of them, today included.
     ///
-    /// `nil` until at least one day has finished. Today is deliberately left out
-    /// of it: a day in progress has spent less than it is going to, so counting
-    /// it would hand out a level at breakfast and take it away by lunch.
+    /// Today counts from the first minute, which is what makes the flame a
+    /// reading of what has actually been spent rather than a report on last
+    /// week. Take one ten-minute break, end it halfway, and five minutes is what
+    /// the day is worth — immediately.
+    ///
+    /// The cost of that is a flame that runs hot in the morning, when a day with
+    /// nothing spent on it genuinely is a day with nothing spent on it, and
+    /// cools as the budget goes. That is the honest way round: the alternative
+    /// credits you now for restraint you have not shown yet.
+    ///
+    /// `nil` only when no run is in progress, since then there are no days of it
+    /// to average.
     func averageUnblockedMinutes(now: Date = .now, calendar: Calendar = .current) -> Double? {
-        let finished = max(0, streakDays(now: now, calendar: calendar) - 1)
-        let window = min(finished, BreakRules.usageWindowDays)
+        let window = min(streakDays(now: now, calendar: calendar), BreakRules.usageWindowDays)
         guard window > 0 else { return nil }
 
-        let keys = (1...window).compactMap { back in
+        let keys = (0..<window).compactMap { back in
             calendar.date(byAdding: .day, value: -back, to: now)
                 .map { BreakState.dayKey(for: $0, calendar: calendar) }
         }

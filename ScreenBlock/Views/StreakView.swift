@@ -99,18 +99,21 @@ struct StreakView: View {
     private var sourceCard: some View {
         Card {
             if let average = model.averageUnblockedMinutes {
+                let counted = min(model.streakDays, window)
                 HStack(spacing: 10) {
                     Text(minutes(average))
                         .font(Theme.display(26, .demiBold))
                         .monospacedDigit()
                     VStack(alignment: .leading, spacing: 0) {
                         Text("min a day").font(.system(size: 11.5)).foregroundColor(Theme.muted)
-                        Text("averaged, finished days").font(.system(size: 9.5)).foregroundColor(Theme.faint)
+                        Text(counted == 1 ? "today so far" : "averaged over \(counted) days")
+                            .font(.system(size: 9.5))
+                            .foregroundColor(Theme.faint)
                     }
                     Spacer()
                     pill(model.earnedStreakLevel)
                 }
-                Text("What you actually unblocked, not what you allowed yourself. Today's \(model.minutesUsedToday) min joins the average tomorrow.")
+                Text("What you actually unblocked, not what you allowed yourself. Today counts as it goes — \(model.minutesUsedToday) min so far, and ending a break early costs you less of it.")
                     .font(.system(size: 11.5))
                     .foregroundColor(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -121,12 +124,12 @@ struct StreakView: View {
                         .monospacedDigit()
                     VStack(alignment: .leading, spacing: 0) {
                         Text("min a day").font(.system(size: 11.5)).foregroundColor(Theme.muted)
-                        Text("your budget, for now").font(.system(size: 9.5)).foregroundColor(Theme.faint)
+                        Text("your budget, at most").font(.system(size: 9.5)).foregroundColor(Theme.faint)
                     }
                     Spacer()
                     pill(model.configuredStreakLevel)
                 }
-                Text("No finished days yet, so the flame goes by what you set. From tomorrow it goes by what you spend.")
+                Text("Nothing running to measure. Switch blocking on and the flame follows what you actually spend.")
                     .font(.system(size: 11.5))
                     .foregroundColor(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
