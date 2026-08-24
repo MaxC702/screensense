@@ -2,7 +2,7 @@ import DeviceActivity
 import Foundation
 
 /// Runs out-of-process, woken by the system. This is the component that makes
-/// the block trustworthy: it re-applies the shield even if ScreenBlock has been
+/// the block trustworthy: it re-applies the shield even if ScreenSense has been
 /// force-quit, backgrounded for days, or never reopened after the break started.
 ///
 /// Keep the work here short and synchronous — the system gives these extensions

@@ -38,7 +38,7 @@ struct HomeView: View {
     private var header: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("ScreenBlock")
+                Text("ScreenSense")
                     .font(Theme.display(28))
                     .kerning(0.3)
 
@@ -372,7 +372,7 @@ struct HomeView: View {
     // MARK: - Footer
 
     private var footnote: some View {
-        Text("Breaks reset at midnight. You can start one straight from the block screen without opening ScreenBlock. What's blocked, and whether blocking is on at all, live in Settings.")
+        Text("Breaks reset at midnight. You can start one straight from the block screen without opening ScreenSense. What's blocked, and whether blocking is on at all, live in Settings.")
             .font(.system(size: 11))
             .foregroundColor(Theme.faint)
             .multilineTextAlignment(.center)

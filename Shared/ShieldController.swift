@@ -4,7 +4,7 @@ import Foundation
 import ManagedSettings
 
 extension ManagedSettingsStore.Name {
-    /// A named store keeps ScreenBlock's restrictions in their own namespace, so
+    /// A named store keeps ScreenSense's restrictions in their own namespace, so
     /// clearing our shield never disturbs restrictions set by Apple's own Screen
     /// Time or by another app.
     static let screenBlock = Self("screenBlock")

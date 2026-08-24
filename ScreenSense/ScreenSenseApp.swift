@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ScreenBlockApp: App {
+struct ScreenSenseApp: App {
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
 

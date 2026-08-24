@@ -1,6 +1,6 @@
 import Foundation
 
-/// The App Group is the seam between the four processes that make up ScreenBlock.
+/// The App Group is the seam between the four processes that make up ScreenSense.
 /// The container app writes state; the monitor, shield, and shield-action
 /// extensions read (and sometimes write) it from their own sandboxes.
 ///

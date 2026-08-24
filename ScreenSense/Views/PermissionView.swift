@@ -18,11 +18,11 @@ struct PermissionView: View {
                 .foregroundStyle(Theme.gradient)
 
             VStack(spacing: 10) {
-                Text("ScreenBlock needs Screen Time access")
+                Text("ScreenSense needs Screen Time access")
                     .font(Theme.display(22, .medium))
                     .multilineTextAlignment(.center)
 
-                Text("iOS handles the blocking itself. ScreenBlock never sees which apps you pick — it only receives anonymous handles from the system.")
+                Text("iOS handles the blocking itself. ScreenSense never sees which apps you pick — it only receives anonymous handles from the system.")
                     .font(.subheadline)
                     .foregroundColor(Theme.muted)
                     .multilineTextAlignment(.center)

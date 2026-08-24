@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerates ScreenBlock.xcodeproj from project.yml.
+# Regenerates ScreenSense.xcodeproj from project.yml.
 # The project file is not committed, so run this after cloning or pulling.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -10,4 +10,4 @@ if ! command -v xcodegen >/dev/null 2>&1; then
 fi
 
 xcodegen generate
-echo "Done. Open ScreenBlock.xcodeproj and run on a physical device."
+echo "Done. Open ScreenSense.xcodeproj and run on a physical device."

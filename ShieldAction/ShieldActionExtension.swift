@@ -3,7 +3,7 @@ import UIKit
 
 /// Handles taps on the block screen's buttons.
 ///
-/// This is where ScreenBlock's main ergonomic win lives. An extension cannot
+/// This is where ScreenSense's main ergonomic win lives. An extension cannot
 /// launch its container app, so most blockers make you quit, hunt down their
 /// icon, and tap through a menu just to get five minutes. Because this process
 /// shares the App Group and holds the Family Controls entitlement, it can spend

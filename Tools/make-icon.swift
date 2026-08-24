@@ -1,6 +1,6 @@
 #!/usr/bin/env swift
 //
-// Generates ScreenBlock's app icon.
+// Generates ScreenSense's app icon.
 //
 //   swift Tools/make-icon.swift
 //
@@ -16,7 +16,7 @@ import ImageIO
 import UniformTypeIdentifiers
 
 // MARK: - Palette
-// Matches Theme.accent in ScreenBlock/Views/RootView.swift.
+// Matches Theme.accent in ScreenSense/Views/RootView.swift.
 
 let gradientTop = CGColor(red: 0.42, green: 0.64, blue: 1.00, alpha: 1)
 let gradientBottom = CGColor(red: 0.13, green: 0.25, blue: 0.78, alpha: 1)
@@ -174,7 +174,7 @@ let root = URL(fileURLWithPath: CommandLine.arguments.first ?? ".")
     .deletingLastPathComponent()   // repo root
     .path
 
-let iconSet = "\(root)/ScreenBlock/Assets.xcassets/AppIcon.appiconset"
+let iconSet = "\(root)/ScreenSense/Assets.xcassets/AppIcon.appiconset"
 write(renderIcon(size: 1024), to: "\(iconSet)/AppIcon.png")
 
 // Small proof that the mark still reads at home-screen size.

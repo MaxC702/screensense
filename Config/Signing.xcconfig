@@ -13,6 +13,13 @@ DEVELOPMENT_TEAM = X9YN79V4C8
 
 // 2. Reverse-DNS prefix for the app. Extensions get .monitor / .shieldconfig /
 //    .shieldaction appended automatically. Must be unique to you.
+//
+//    Still says "screenblock" after the app was renamed to ScreenSense, and that
+//    is deliberate. Bundle IDs are invisible to users, but changing this one
+//    changes the App Group derived from it on the line below — which means a new,
+//    empty shared container, and every streak, every day of history and the
+//    chosen apps left behind in the old one. A legacy identifier is the cheaper
+//    of the two, by a distance.
 BUNDLE_ID_PREFIX = com.chernobayev.screenblock
 
 // 3. The App Group is the shared container the app and its three extensions use

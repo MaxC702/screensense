@@ -1,4 +1,4 @@
-# ScreenBlock
+# ScreenSense
 
 An iOS app blocker with **no limit on how many apps you block** and a break budget you set
 yourself: **1–5 breaks per day, 1–30 minutes each, with a 5-minute to 1-hour enforced wait
@@ -12,7 +12,7 @@ itself rather than by a VPN profile or a DNS trick.
 The App Store blockers tend to fail in one of two ways: they gate a basic block list
 behind a subscription, or they cap how many apps you can add. Neither limit is technical.
 Apple hands you a `Set<ApplicationToken>` with no size cap, and blocking one app costs
-exactly what blocking forty does. ScreenBlock just doesn't add the artificial ceiling.
+exactly what blocking forty does. ScreenSense just doesn't add the artificial ceiling.
 
 ## How it works
 
@@ -20,10 +20,10 @@ Four processes share one App Group container:
 
 | Target | Role |
 |---|---|
-| `ScreenBlock` | The app. Pick apps, toggle blocking, set the budget, spend a break. |
+| `ScreenSense` | The app. Pick apps, toggle blocking, set the budget, spend a break. |
 | `Monitor` | `DeviceActivityMonitor` extension. Re-applies the block when a break ends — **even if the app is force-quit**. |
 | `ShieldConfig` | Draws the block screen. |
-| `ShieldAction` | Handles taps on that screen, so you can start a break without opening ScreenBlock. |
+| `ShieldAction` | Handles taps on that screen, so you can start a break without opening ScreenSense. |
 
 ### The break mechanism
 
@@ -66,7 +66,7 @@ exists to prevent.
 Unlike breaks, the cooldown is **wall clock**, deliberately. A usage-based cooldown could
 be run down from inside a blocked app, which would defeat it entirely.
 
-The cooldown is anchored to when the break *actually* ended, not to when ScreenBlock
+The cooldown is anchored to when the break *actually* ended, not to when ScreenSense
 noticed. Ending early makes that the moment you tapped; a break that expired while the app
 was closed is anchored to its scheduled end (`min(scheduledEnd, now)`). Anchoring to "now"
 unconditionally would silently stretch the cooldown by however long the app stayed shut.
@@ -106,7 +106,7 @@ cd screenblock
 
    ```bash
    ./generate.sh
-   open ScreenBlock.xcodeproj
+   open ScreenSense.xcodeproj
    ```
 
 3. **Enable Developer Mode on the iPhone** — Settings › Privacy & Security › Developer
@@ -125,7 +125,7 @@ cd screenblock
 To test quickly, set break length to 1 minute and the wait to 5 minutes in Settings —
 otherwise you're sitting through real cooldowns to see a state change.
 
-`ScreenBlock.xcodeproj` is generated and gitignored — edit `project.yml`, not the project.
+`ScreenSense.xcodeproj` is generated and gitignored — edit `project.yml`, not the project.
 
 ### Account and entitlement caveats
 
@@ -140,7 +140,7 @@ which is a manual review that can take days or weeks.
 **2. Free vs. paid account.** A free Apple ID ("Personal Team") allows on-device testing,
 but with limits that bite this project specifically:
 
-- **10 App IDs per 7 days.** ScreenBlock needs 5 registrations (4 targets + 1 App Group),
+- **10 App IDs per 7 days.** ScreenSense needs 5 registrations (4 targets + 1 App Group),
   so two setup attempts in a week can exhaust the quota and lock you out until it resets.
 - **Provisioning expires after 7 days**, so the app stops launching weekly until you
   rebuild from Xcode.
@@ -155,12 +155,12 @@ Try free if you want — it costs nothing and you'll know within half an hour. B
 
 1. **Choose apps** — Apple's own picker. Pick as many apps, whole categories, and websites
    as you want.
-2. **Toggle blocking on.** Blocked apps now show the ScreenBlock shield.
+2. **Toggle blocking on.** Blocked apps now show the ScreenSense shield.
 3. **Set your budget** — the gear in the top right, or tap the "Each break lasts" row on
    the home screen. Breaks per day is a 1–5 segmented control; break length is a 1–30
    minute slider; the wait between breaks is a 5–60 minute slider. Changes save immediately
    and the block screen picks them up at once.
-4. **Need in?** Either open ScreenBlock and hit **Start break**, or tap **Take a break**
+4. **Need in?** Either open ScreenSense and hit **Start break**, or tap **Take a break**
    directly on the block screen — that spends one break and drops you straight into the
    app without ever leaving it.
 
@@ -169,7 +169,7 @@ it takes effect from tomorrow, and the settings screen says so when that applies
 
 ## Privacy
 
-ScreenBlock never learns which apps you blocked. `FamilyControls` returns opaque,
+ScreenSense never learns which apps you blocked. `FamilyControls` returns opaque,
 device-bound tokens — no bundle IDs, no names, nothing inspectable or loggable. All state
 lives in a local App Group container. There is no network code in this project.
 
@@ -185,7 +185,7 @@ Shared/                   Compiled into all four targets
   BreakStore.swift        App Group persistence
   ShieldController.swift  The only writer of shield tokens
   BreakEngine.swift       start / end / reconcile a break
-ScreenBlock/              SwiftUI app
+ScreenSense/              SwiftUI app
 Monitor/                  DeviceActivityMonitor extension
 ShieldConfig/             Block screen appearance
 ShieldAction/             Block screen buttons
@@ -232,7 +232,7 @@ The icon is generated, not drawn — `Tools/make-icon.swift` renders it with Cor
 swift Tools/make-icon.swift
 ```
 
-That writes `ScreenBlock/Assets.xcassets/AppIcon.appiconset/AppIcon.png` (1024×1024) plus a
+That writes `ScreenSense/Assets.xcassets/AppIcon.appiconset/AppIcon.png` (1024×1024) plus a
 throwaway 120px preview for checking that the mark still reads at home-screen size. Colours
 track `Theme.accent`, so the icon and the in-app UI can't drift apart.
 

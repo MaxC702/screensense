@@ -165,7 +165,7 @@ final class AppModel: ObservableObject {
         do {
             try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
         } catch {
-            errorMessage = "Screen Time access was denied. Enable it in Settings › Screen Time, then reopen ScreenBlock."
+            errorMessage = "Screen Time access was denied. Enable it in Settings › Screen Time, then reopen ScreenSense."
         }
         authorizationStatus = AuthorizationCenter.shared.authorizationStatus
     }

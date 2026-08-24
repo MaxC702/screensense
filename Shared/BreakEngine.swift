@@ -201,7 +201,7 @@ enum BreakEngine {
     /// It exists because the two out-of-process triggers can both miss: the
     /// usage threshold only fires if the user actually opens the blocked apps,
     /// and the interval backstop is padded to iOS's 15-minute floor. This closes
-    /// a short break on wall-clock time the next time the user opens ScreenBlock.
+    /// a short break on wall-clock time the next time the user opens ScreenSense.
     static func reconcile(now: Date = .now) {
         let state = BreakStore.loadState(now: now)
 

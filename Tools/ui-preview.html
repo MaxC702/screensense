@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ScreenBlock UI Preview</title>
+<title>ScreenSense UI Preview</title>
 <style>
   :root{
     --bg:#0b0912;        /* Theme.background */
@@ -119,8 +119,8 @@
 <body>
 
 <header class="page">
-  <h1>ScreenBlock — UI preview</h1>
-  <p>Static HTML rendering of the SwiftUI screens in <code>ScreenBlock/Views/</code>, using <code>Theme</code>
+  <h1>ScreenSense — UI preview</h1>
+  <p>Static HTML rendering of the SwiftUI screens in <code>ScreenSense/Views/</code>, using <code>Theme</code>
      from <code>RootView.swift</code> (bg <code>#0b0912</code>, card <code>#17141f</code>, accent gradient
      <code>#7c5cff → #4a8cff</code>). Copy and state logic are taken from the source; SF Symbols are
      approximated with inline SVG, so glyph shapes and system controls (segmented picker, slider, toggle,
@@ -185,7 +185,7 @@ function home(o){
 
     <div style="display:flex;align-items:center;gap:8px;padding:4px 2px 2px">
       <div>
-        <div class="title">ScreenBlock</div>
+        <div class="title">ScreenSense</div>
         <div class="sub" style="font-size:12px;margin-top:3px">
           <span class="dot${o.blocking?'':' off'}"></span>${o.blocking?'Blocking is on':'Blocking is off'}</div>
       </div>
@@ -239,7 +239,7 @@ function home(o){
       <div class="row"><span class="lbl">Wait between breaks</span><span class="val">${o.cooldown} min</span></div>
     </div>`}
 
-    <div class="foot">Breaks reset at midnight. Tap the gear to change how many you get and how long they last. You can also start one straight from the block screen without opening ScreenBlock.</div>
+    <div class="foot">Breaks reset at midnight. Tap the gear to change how many you get and how long they last. You can also start one straight from the block screen without opening ScreenSense.</div>
     <div class="foot" style="font-size:10px">v1.0 (2)</div>
   </div></div></div>`;
 }
@@ -294,8 +294,8 @@ function permission(denied){
     <div style="flex:1"></div>
     ${I.shieldBig}
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:21px;font-weight:700;line-height:1.25">ScreenBlock needs Screen Time access</div>
-      <div class="sub">iOS handles the blocking itself. ScreenBlock never sees which apps you pick — it only receives anonymous handles from the system.</div>
+      <div style="font-size:21px;font-weight:700;line-height:1.25">ScreenSense needs Screen Time access</div>
+      <div class="sub">iOS handles the blocking itself. ScreenSense never sees which apps you pick — it only receives anonymous handles from the system.</div>
     </div>
     <div style="flex:1"></div>
     ${denied?`<div style="font-size:11.5px;color:#ffb340;line-height:1.4">Access was denied. Open Settings › Screen Time to allow it, then come back.</div>`:''}
