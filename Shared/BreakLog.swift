@@ -14,6 +14,7 @@ import os
 /// already on screen? Those have different fixes.
 enum BreakLog {
     private static let key = "screenblock.log.v1"
+    private static let file = "log.v1.json"
     private static let limit = 80
 
     private static let logger = Logger(
@@ -39,11 +40,18 @@ enum BreakLog {
         if entries.count > limit {
             entries.removeFirst(entries.count - limit)
         }
-        guard let data = try? JSONEncoder().encode(entries) else { return }
-        UserDefaults.shared.setDurable(data, forKey: key)
+        guard let url = url, let data = try? JSONEncoder().encode(entries) else { return }
+        try? data.write(to: url, options: .atomic)
     }
 
     static func load() -> [Entry] {
+        if let url = url,
+           let data = try? Data(contentsOf: url),
+           let entries = try? JSONDecoder().decode([Entry].self, from: data) {
+            return entries
+        }
+        // Whatever an earlier build left behind, so upgrading does not appear to
+        // wipe the log the moment it is most likely to be wanted.
         guard let data = UserDefaults.shared.freshData(forKey: key),
               let entries = try? JSONDecoder().decode([Entry].self, from: data)
         else { return [] }
@@ -51,6 +59,13 @@ enum BreakLog {
     }
 
     static func clear() {
+        if let url = url { try? FileManager.default.removeItem(at: url) }
         UserDefaults.shared.setDurable(nil, forKey: key)
+    }
+
+    /// Alongside the state, for the same reason: extensions write this on their
+    /// way out, and a defaults write issued by a doomed process can be lost.
+    private static var url: URL? {
+        BreakStore.containerURL?.appendingPathComponent(file, isDirectory: false)
     }
 }

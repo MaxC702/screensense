@@ -99,6 +99,15 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             primaryLabel = "Take \(Self.article(for: minutes)) \(minutes)-minute break"
         }
 
+        // Recorded so Diagnostics can tell the two failure modes apart: a stale
+        // count with no line here means the system never asked and is showing a
+        // cached screen; a stale count *with* one means this process read the
+        // wrong thing.
+        BreakLog.record(
+            "shield drawn: \(remaining) of \(settings.breaksPerDay) left, cooling down: \(coolingDown)",
+            source: "shield"
+        )
+
         return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
             backgroundColor: UIColor(red: 0.043, green: 0.035, blue: 0.071, alpha: 0.93),
