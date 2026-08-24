@@ -278,8 +278,11 @@ final class AppModel: ObservableObject {
     }
 
     /// Ending early does **not** refund the break — that's the point of a budget.
+    ///
+    /// The only call site allowed past `endBreak`'s early-trigger guard, because
+    /// it is the only one that is a decision rather than a report.
     func endBreakEarly() {
-        BreakEngine.endBreak()
+        BreakEngine.endBreak(source: "app/user", allowEarly: true)
         refresh()
     }
 }

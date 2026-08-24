@@ -88,15 +88,45 @@ enum BreakEngine {
     /// Idempotent, because it can be called by the usage threshold, the interval
     /// backstop, and the app's foreground check — potentially all three for the
     /// same break.
-    static func endBreak(now: Date = .now, source: String = "app") {
+    ///
+    /// `allowEarly` is for the one caller entitled to cut a break short: the user
+    /// tapping "End break now". Every other caller is a trigger *reporting* that
+    /// a break is over, and a trigger that reports that before the break's own
+    /// deadline is simply wrong.
+    static func endBreak(now: Date = .now, source: String = "app", allowEarly: Bool = false) {
         let existing = BreakStore.loadState(now: now)
 
         // Nothing running: don't re-apply, and above all don't tear down again.
         // `stopMonitoring` delivers `intervalDidEnd` for the activity it stops,
         // which calls straight back into here — so without this guard one expiry
         // ran the whole slow path twice.
-        guard existing.breakEndsAt != nil else {
+        guard let scheduledEnd = existing.breakEndsAt else {
             BreakLog.record("endBreak (\(source)): no break was running", source: source)
+            return
+        }
+
+        // A trigger that arrives early is discarded, and this is what stops a
+        // break dying seconds after it began.
+        //
+        // Two things fire early. The usage threshold is registered under the same
+        // activity and event names on every break, and iOS will report a
+        // threshold it considers already met the moment it is re-registered —
+        // instantly, for a budget spent earlier in the day. And `armMonitoring`
+        // calls `stopMonitoring` before the new break's state is written, so the
+        // `intervalDidEnd` that teardown provokes can be delivered to the monitor
+        // process *after* the new deadline has been saved, whereupon it reads as
+        // a live break to cancel.
+        //
+        // Discarding is safe because it happens before the teardown at the bottom
+        // of this function: the resume interval stays armed and still fires at
+        // the right moment. And it is what the app promises anyway — a break runs
+        // on the clock, and comes back when the clock says so.
+        if !allowEarly, existing.endTriggerIsEarly(now: now) {
+            let early = Int(scheduledEnd.timeIntervalSince(now).rounded())
+            BreakLog.record(
+                "endBreak (\(source)): fired \(early)s early — ignored, break runs to \(Self.clock(scheduledEnd))",
+                source: source
+            )
             return
         }
 
@@ -195,6 +225,8 @@ enum BreakEngine {
         }
 
         if state.breakEndsAt != nil, !state.isOnBreak(now: now) {
+            // Already past its deadline — checked on the line above — so this
+            // needs no dispensation from the early-trigger guard.
             BreakLog.record("reconcile: found an expired break still open", source: "app/reconcile")
             endBreak(source: "app/reconcile")
         } else if state.breakEndsAt == nil {

@@ -42,6 +42,13 @@ enum BreakRules {
     /// that a change in habit shows up while you still remember making it.
     static let usageWindowDays = 7
 
+    /// How early a trigger may arrive and still be believed.
+    ///
+    /// Small on purpose: it covers clock jitter around a deadline, nothing more.
+    /// Anything earlier than this is not a break ending, it is a trigger
+    /// misfiring — see `BreakEngine.endBreak`.
+    static let endTriggerTolerance: TimeInterval = 2
+
     static func clampMinutes(_ minutes: Int) -> Int {
         min(max(minutes, minMinutes), maxMinutes)
     }
@@ -158,6 +165,16 @@ struct BreakState: Codable, Equatable {
     func isOnBreak(now: Date = .now) -> Bool {
         guard let breakEndsAt else { return false }
         return breakEndsAt > now
+    }
+
+    /// Whether a trigger claiming this break is over arrived too early to be
+    /// believed. False when no break is running, which the caller handles first.
+    ///
+    /// Lives here rather than inside `BreakEngine` so the rule can be exercised
+    /// without a `DeviceActivityCenter` to hand.
+    func endTriggerIsEarly(now: Date = .now) -> Bool {
+        guard let breakEndsAt else { return false }
+        return now < breakEndsAt - BreakRules.endTriggerTolerance
     }
 
     func remainingBreakSeconds(now: Date = .now) -> TimeInterval {
