@@ -20,13 +20,15 @@ import Foundation
 /// report. Three buckets someone picks in a second are worth more than an exact
 /// figure the app can never see.
 enum ScreenTimeBand: Int, CaseIterable, Codable {
-    case upToThree = 0
+    case underTwo = 0
+    case twoToThree
     case threeToSix
     case overSix
 
     var title: String {
         switch self {
-        case .upToThree: return "Up to 3 hours"
+        case .underTwo: return "Under 2 hours"
+        case .twoToThree: return "2 to 3 hours"
         case .threeToSix: return "3 to 6 hours"
         case .overSix: return "More than 6 hours"
         }
@@ -36,7 +38,8 @@ enum ScreenTimeBand: Int, CaseIterable, Codable {
     /// wording ("Up to 3 hours") turns into "the up to 3 hours you started at".
     var phrase: String {
         switch self {
-        case .upToThree: return "under 3 hours a day"
+        case .underTwo: return "under 2 hours a day"
+        case .twoToThree: return "2 to 3 hours a day"
         case .threeToSix: return "3 to 6 hours a day"
         case .overSix: return "over 6 hours a day"
         }
@@ -46,12 +49,20 @@ enum ScreenTimeBand: Int, CaseIterable, Codable {
     ///
     /// A single number per band rather than the range itself, because a ladder
     /// that shifted continuously with a slider would make two people's Blazes
-    /// incomparable and invite gaming the one input nobody can check. Picked at
-    /// the middle of the two bounded bands, and a shade above the floor of the
-    /// open-ended one — someone answering "more than six" is rarely at six.
+    /// incomparable and invite gaming the one input nobody can check. Picked
+    /// towards the top of each bounded band — someone who has gone as far as
+    /// installing a blocker is rarely at the floor of the answer they gave — and
+    /// a shade above the floor of the open-ended one for the same reason.
+    ///
+    /// These are identifiers as much as figures: the ladder itself is a table
+    /// per band, and this is only what gets stored and mapped back. They are
+    /// spaced so that 120 — every answer of the old three-band "up to 3 hours" —
+    /// still lands on `twoToThree` rather than being quietly demoted onto the
+    /// stricter ladder that now sits underneath it.
     var baselineMinutes: Int {
         switch self {
-        case .upToThree: return 120
+        case .underTwo: return 80
+        case .twoToThree: return 150
         case .threeToSix: return 240
         case .overSix: return 420
         }
@@ -69,13 +80,14 @@ enum ScreenTimeBand: Int, CaseIterable, Codable {
     /// from two hours or seven; scaling it would have put Blue flame at two
     /// minutes a day for a light user, which is not a rung, it is a taunt.
     ///
-    /// So the bands fan out at the bottom and converge at the top: 35/60/90 for
-    /// Flame, but 8/10/12 for Blue flame. The ladder still says a heavy user's
-    /// forty minutes is worth more — it just stops pretending the summit is a
-    /// different mountain for each of them.
+    /// So the bands fan out at the bottom and converge at the top: 22 through 90
+    /// for Flame, but 6 through 12 for Blue flame. The ladder still says a heavy
+    /// user's forty minutes is worth more — it just stops pretending the summit
+    /// is a different mountain for each of them.
     var rungCeilings: [Int] {
         switch self {
-        case .upToThree: return [35, 22, 14, 8]
+        case .underTwo: return [22, 14, 10, 6]
+        case .twoToThree: return [35, 22, 14, 8]
         case .threeToSix: return [60, 35, 20, 10]
         case .overSix: return [90, 50, 28, 12]
         }

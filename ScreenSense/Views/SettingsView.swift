@@ -268,7 +268,7 @@ struct SettingsView: View {
     /// point at which the ladder has stopped asking anything of them.
     private var outgrownBaselineNote: String? {
         guard model.hasChosenBaseline, model.earnedStreakLevel == .blueFlame else { return nil }
-        guard model.baselineBand != .upToThree else { return nil }
+        guard model.baselineBand != .underTwo else { return nil }
         return "You have reached the highest level. If you no longer spend \(model.baselineBand.phrase) on these apps, tap Change above — the levels are based on that number, so an out-of-date one makes them too easy to reach."
     }
 
