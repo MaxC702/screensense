@@ -25,10 +25,6 @@ struct BaselineSheet: View {
                         }
                     }
 
-                    Text("A rough answer is enough — the rungs move in fifths, not minutes. You can change it whenever you like.")
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.faint)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(17)
             }
@@ -47,13 +43,13 @@ struct BaselineSheet: View {
 
     private var preamble: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("How long were you spending in these apps on a normal day?")
+            Text("How long do you usually spend on these specific apps per day?")
                 .font(Theme.display(19, .medium))
                 .fixedSize(horizontal: false, vertical: true)
 
             // Says what the answer is *for*. Without this it reads as data
             // collection, which is the one thing this app must never look like.
-            Text("The flame measures how far you have come down from your own starting point, not how you compare to anyone else. Six hours down to forty minutes a day is a harder thing to do than ninety minutes down to forty, and this is what lets the ladder tell them apart.")
+            Text("The flame measures how far you have come down from your own starting point.")
                 .font(.system(size: 12.5))
                 .foregroundColor(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -67,21 +63,14 @@ struct BaselineSheet: View {
             model.chooseBaseline(band)
             dismiss()
         } label: {
-            HStack(alignment: .top, spacing: 11) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(band.title)
-                        .font(Theme.display(16, .medium))
-                        .foregroundColor(.white)
-                    Text(band.detail)
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                    // The hardest rung, named up front. A ladder is easier to
-                    // agree to when the top of it is not a surprise.
-                    Text("Blue flame at \(band.topRungMinutes) min a day")
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundColor(StreakLevel.blueFlame.tint.opacity(0.9))
-                }
+            HStack(spacing: 11) {
+                // The answers say what they are. Anything written underneath
+                // them was commentary on the user's habits, which is not this
+                // screen's business and reads as a judgement while they are
+                // still deciding which one is true.
+                Text(band.title)
+                    .font(Theme.display(16, .medium))
+                    .foregroundColor(.white)
                 Spacer(minLength: 0)
                 Image(systemName: chosen ? "checkmark.circle.fill" : "chevron.right")
                     .font(.system(size: chosen ? 17 : 12, weight: .semibold))

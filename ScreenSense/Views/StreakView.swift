@@ -148,23 +148,9 @@ struct StreakView: View {
     /// explains the level rather than buried in Settings, which is the screen for
     /// what you are allowed rather than for what you are measured against.
     private var baselineRow: some View {
-        Button { isAskingBaseline = true } label: {
-            HStack(spacing: 7) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(Theme.faint)
-                Text(model.hasChosenBaseline
-                     ? "Scaled to \(model.baselineBand.phrase)"
-                     : "Scaled to a guess — say what you were on")
-                    .font(.system(size: 11))
-                    .foregroundColor(Theme.muted)
-                Spacer(minLength: 0)
-                Text(model.hasChosenBaseline ? "Change" : "Answer")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Theme.accentSoft)
-            }
+        BaselineRow(band: model.baselineBand, hasChosen: model.hasChosenBaseline) {
+            isAskingBaseline = true
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Where the level comes from

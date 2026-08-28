@@ -23,6 +23,11 @@ struct SettingsView: View {
     /// snaps back to on while this is up, because nothing has been decided yet.
     @State private var isConfirmingUnblock = false
 
+    /// The level card is the one place that sets what the flame is judged on, so
+    /// it is where the other half of that judgement — the starting point — has
+    /// to be reachable too.
+    @State private var isEditingBaseline = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 13) {
@@ -44,6 +49,9 @@ struct SettingsView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isEditingBaseline) {
+            BaselineSheet().environmentObject(model)
+        }
         .familyActivityPicker(isPresented: $model.isPickerPresented, selection: $model.selection)
         .onChange(of: model.isPickerPresented) { presented in
             // Commit when Apple's picker dismisses rather than on every keystroke
@@ -233,7 +241,31 @@ struct SettingsView: View {
             if model.isRelighting {
                 note("A lost run has your flame at \(model.streakLevel.name) for now. \(relightHint)")
             }
+
+            Divider().overlay(Theme.hairline)
+            BaselineRow(band: model.baselineBand, hasChosen: model.hasChosenBaseline) {
+                isEditingBaseline = true
+            }
+
+            if let outgrown = outgrownBaselineNote {
+                note(outgrown)
+            }
         }
+    }
+
+    /// The failure this row exists to catch, said out loud at the moment it is
+    /// happening.
+    ///
+    /// A baseline is a claim about the past, and this app's whole purpose is to
+    /// make that claim stop being true. Somebody who genuinely gets from six
+    /// hours to two and never comes back here keeps a Blue flame cut from the
+    /// six — a top rung earned against a person they no longer are. It is only
+    /// worth raising once they are actually sitting at the top, which is the
+    /// point at which the ladder has stopped asking anything of them.
+    private var outgrownBaselineNote: String? {
+        guard model.hasChosenBaseline, model.earnedStreakLevel == .blueFlame else { return nil }
+        guard model.baselineBand != .upToThree else { return nil }
+        return "At the top of the ladder. If these apps are lighter now than the figure above, update it — a stale starting point makes this easier than it should be."
     }
 
     /// Ties the slider to the thing it does not control, so nobody drags this

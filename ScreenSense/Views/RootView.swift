@@ -260,6 +260,40 @@ struct BrokenFlame: View {
     }
 }
 
+/// The figure the ladder is cut from, and the way back to changing it.
+///
+/// Shown in both places the level is explained: the Streak tab, which reports
+/// what was earned, and Settings, which sets what is allowed. A baseline that
+/// could only be answered once would go stale in exactly the case the app is
+/// built to produce — someone who really does get from six hours down to two
+/// keeps being judged against the six, and keeps being handed a top rung they
+/// have outgrown.
+struct BaselineRow: View {
+    let band: ScreenTimeBand
+    let hasChosen: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Theme.faint)
+                Text(hasChosen
+                     ? "Scaled to \(band.phrase)"
+                     : "Scaled to a guess — say what you were on")
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.muted)
+                Spacer(minLength: 0)
+                Text(hasChosen ? "Change" : "Answer")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Theme.accentSoft)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// How much is left in the current rung, drawn as a little upright cell.
 ///
 /// The ladder says which rung you are on; this says where you are standing on

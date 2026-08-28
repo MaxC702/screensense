@@ -32,35 +32,23 @@ enum StreakLevel: Int, CaseIterable, Comparable {
         }
     }
 
-    /// What fraction of a day's old usage this level tolerates.
+    /// Most unblocked minutes a day this level tolerates, for someone starting
+    /// from `band`.
     ///
     /// `nil` for Ember, which is the bottom of the ladder and catches everything
     /// looser than Flame — including the 150 minutes a day that five 30-minute
     /// breaks come to.
     ///
-    /// A share rather than a number of minutes, because the same forty minutes
-    /// is a triumph for one person and barely a dent for another. Fifths, tenths
-    /// and twentieths are coarse on purpose: the baseline behind them is a
-    /// bucket someone picked in a second, and cutting it any finer would be
-    /// arithmetic pretending to be measurement.
-    var share: Double? {
-        switch self {
-        case .ember: return nil
-        case .flame: return 0.20
-        case .blaze: return 0.10
-        case .whiteHeat: return 0.05
-        case .blueFlame: return 0.02
-        }
+    /// The numbers themselves live on `ScreenTimeBand`, which is where the
+    /// reasoning about how far the bands should fan out belongs.
+    func ceiling(band: ScreenTimeBand) -> Int? {
+        guard self != .ember else { return nil }
+        return band.rungCeilings[rawValue - 1]
     }
 
-    /// Most unblocked minutes a day this level tolerates, for someone who used
-    /// to spend `baseline` minutes a day in these apps.
-    ///
-    /// Never returns zero: a rung nobody can reach is not a rung, and rounding
-    /// alone should not be able to close one off for a light user.
+    /// The same, for callers holding the stored figure rather than the band.
     func ceiling(baseline: Int) -> Int? {
-        guard let share else { return nil }
-        return max(1, Int((Double(baseline) * share).rounded()))
+        ceiling(band: ScreenTimeBand.band(forBaselineMinutes: baseline))
     }
 
     var next: StreakLevel? { StreakLevel(rawValue: rawValue + 1) }

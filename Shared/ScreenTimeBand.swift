@@ -42,14 +42,6 @@ enum ScreenTimeBand: Int, CaseIterable, Codable {
         }
     }
 
-    var detail: String {
-        switch self {
-        case .upToThree: return "A habit, not a hole. There is less to give back."
-        case .threeToSix: return "The usual answer, and the hardest one to admit."
-        case .overSix: return "Most of a working day. Coming down is worth more here."
-        }
-    }
-
     /// The figure the rungs are cut from.
     ///
     /// A single number per band rather than the range itself, because a ladder
@@ -65,10 +57,28 @@ enum ScreenTimeBand: Int, CaseIterable, Codable {
         }
     }
 
-    /// What the top rung asks of someone in this band, for the sheet to show.
-    /// A ladder is easier to agree to when the hardest rung is named up front.
-    var topRungMinutes: Int {
-        StreakLevel.blueFlame.ceiling(baseline: baselineMinutes) ?? 0
+    /// Most unblocked minutes a day each rung tolerates, Flame first and Blue
+    /// flame last. Ember is everything looser than the first number.
+    ///
+    /// A hand-set table rather than one percentage applied to everybody, because
+    /// a flat share cannot be right at both ends of the ladder at once. The
+    /// lower rungs *should* scale with where you started — forty minutes is a
+    /// failure from two hours and a real gain from seven, which is the whole
+    /// point of asking. The top rung should not. Someone down to ten minutes a
+    /// day has effectively stopped, and that is equally true whether they came
+    /// from two hours or seven; scaling it would have put Blue flame at two
+    /// minutes a day for a light user, which is not a rung, it is a taunt.
+    ///
+    /// So the bands fan out at the bottom and converge at the top: 35/60/90 for
+    /// Flame, but 8/10/12 for Blue flame. The ladder still says a heavy user's
+    /// forty minutes is worth more — it just stops pretending the summit is a
+    /// different mountain for each of them.
+    var rungCeilings: [Int] {
+        switch self {
+        case .upToThree: return [35, 22, 14, 8]
+        case .threeToSix: return [60, 35, 20, 10]
+        case .overSix: return [90, 50, 28, 12]
+        }
     }
 
     /// Used until the question has been answered.
