@@ -32,19 +32,35 @@ enum StreakLevel: Int, CaseIterable, Comparable {
         }
     }
 
-    /// Most unblocked minutes a day this level tolerates.
+    /// What fraction of a day's old usage this level tolerates.
     ///
     /// `nil` for Ember, which is the bottom of the ladder and catches everything
     /// looser than Flame — including the 150 minutes a day that five 30-minute
     /// breaks come to.
-    var ceiling: Int? {
+    ///
+    /// A share rather than a number of minutes, because the same forty minutes
+    /// is a triumph for one person and barely a dent for another. Fifths, tenths
+    /// and twentieths are coarse on purpose: the baseline behind them is a
+    /// bucket someone picked in a second, and cutting it any finer would be
+    /// arithmetic pretending to be measurement.
+    var share: Double? {
         switch self {
         case .ember: return nil
-        case .flame: return 45
-        case .blaze: return 22
-        case .whiteHeat: return 12
-        case .blueFlame: return 5
+        case .flame: return 0.20
+        case .blaze: return 0.10
+        case .whiteHeat: return 0.05
+        case .blueFlame: return 0.02
         }
+    }
+
+    /// Most unblocked minutes a day this level tolerates, for someone who used
+    /// to spend `baseline` minutes a day in these apps.
+    ///
+    /// Never returns zero: a rung nobody can reach is not a rung, and rounding
+    /// alone should not be able to close one off for a light user.
+    func ceiling(baseline: Int) -> Int? {
+        guard let share else { return nil }
+        return max(1, Int((Double(baseline) * share).rounded()))
     }
 
     var next: StreakLevel? { StreakLevel(rawValue: rawValue + 1) }
@@ -56,7 +72,7 @@ enum StreakLevel: Int, CaseIterable, Comparable {
     /// The strict end of this level's band — the ceiling of the rung above it,
     /// which is the point at which you stop being this level and start being a
     /// better one. Zero for the top rung, which has nowhere further to go.
-    var floor: Int { next?.ceiling ?? 0 }
+    func floor(baseline: Int) -> Int { next?.ceiling(baseline: baseline) ?? 0 }
 
     /// How much is left in the tank at `minutes` a day: 1 at the strict end of
     /// the band, 0 sitting on the ceiling with one more minute about to cost a
@@ -66,17 +82,17 @@ enum StreakLevel: Int, CaseIterable, Comparable {
     /// nothing under it to fall to. The gauge measures the drop, and at the
     /// bottom there is no drop — the dull red it is drawn in is what says this
     /// is not somewhere to be pleased about being.
-    func chargeFraction(atDailyMinutes minutes: Double) -> Double {
-        guard let ceiling else { return 1 }
-        let span = Double(ceiling - floor)
+    func chargeFraction(atDailyMinutes minutes: Double, baseline: Int) -> Double {
+        guard let ceiling = ceiling(baseline: baseline) else { return 1 }
+        let span = Double(ceiling - floor(baseline: baseline))
         guard span > 0 else { return 1 }
         return min(1, max(0, (Double(ceiling) - minutes) / span))
     }
 
     /// Minutes a day that could still be spent before this level gives way;
     /// `nil` at the bottom, where nothing gives way.
-    func headroom(atDailyMinutes minutes: Double) -> Double? {
-        guard let ceiling else { return nil }
+    func headroom(atDailyMinutes minutes: Double, baseline: Int) -> Double? {
+        guard let ceiling = ceiling(baseline: baseline) else { return nil }
         return max(0, Double(ceiling) - minutes)
     }
 
@@ -112,9 +128,9 @@ enum StreakLevel: Int, CaseIterable, Comparable {
     }
 
     /// The tightest ceiling a figure of unblocked minutes a day still fits under.
-    static func level(forDailyMinutes minutes: Double) -> StreakLevel {
+    static func level(forDailyMinutes minutes: Double, baseline: Int) -> StreakLevel {
         allCases.reversed().first { level in
-            guard let ceiling = level.ceiling else { return true }
+            guard let ceiling = level.ceiling(baseline: baseline) else { return true }
             return minutes <= Double(ceiling)
         } ?? .ember
     }
@@ -124,13 +140,19 @@ enum StreakLevel: Int, CaseIterable, Comparable {
     /// what a brand new streak is judged by until it has a finished day on the
     /// board.
     static func level(for settings: BreakSettings) -> StreakLevel {
-        level(forDailyMinutes: Double(dailyMinutes(for: settings)))
+        level(
+            forDailyMinutes: Double(dailyMinutes(for: settings)),
+            baseline: settings.effectiveBaselineMinutes
+        )
     }
 
     /// Minutes a day that would have to come off the budget to reach the next
     /// level up; `nil` at the top, where there is nothing left to reach.
     static func minutesToNextLevel(from settings: BreakSettings) -> Int? {
-        guard let next = level(for: settings).next, let ceiling = next.ceiling else { return nil }
+        guard
+            let next = level(for: settings).next,
+            let ceiling = next.ceiling(baseline: settings.effectiveBaselineMinutes)
+        else { return nil }
         return max(1, dailyMinutes(for: settings) - ceiling)
     }
 

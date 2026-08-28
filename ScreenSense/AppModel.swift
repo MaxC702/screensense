@@ -55,6 +55,18 @@ final class AppModel: ObservableObject {
     /// though the badge has simply failed to light.
     var streakBrokenToday: Bool { state.streakBrokenToday(now: now) }
 
+    /// Minutes a day these apps used to take, which is what the ladder's rungs
+    /// are cut from. Falls back to the middle band until the question is put.
+    var baselineMinutes: Int { settings.effectiveBaselineMinutes }
+    var baselineBand: ScreenTimeBand { ScreenTimeBand.band(forBaselineMinutes: baselineMinutes) }
+    /// Whether the user has actually answered, as opposed to being carried by
+    /// the fallback. The Streak tab asks the first time this is false.
+    var hasChosenBaseline: Bool { settings.baselineMinutes != nil }
+
+    func chooseBaseline(_ band: ScreenTimeBand) {
+        updateSettings { $0.baselineMinutes = band.baselineMinutes }
+    }
+
     /// What the budget on its own is worth — the level of someone who spends
     /// every minute they allow themselves. Settings shows this, because that is
     /// the screen that sets it, and it moves under the sliders as they drag.
@@ -70,7 +82,7 @@ final class AppModel: ObservableObject {
     /// board, what you set for yourself is the only evidence there is.
     var earnedStreakLevel: StreakLevel {
         guard let average = averageUnblockedMinutes else { return configuredStreakLevel }
-        return StreakLevel.level(forDailyMinutes: average)
+        return StreakLevel.level(forDailyMinutes: average, baseline: baselineMinutes)
     }
 
     /// Unblocked minutes a day across the finished days of this run; `nil` while
@@ -94,14 +106,14 @@ final class AppModel: ObservableObject {
     /// is true: those minutes are comfortably inside that band.
     var levelCharge: Double? {
         guard let average = averageUnblockedMinutes else { return nil }
-        return streakLevel.chargeFraction(atDailyMinutes: average)
+        return streakLevel.chargeFraction(atDailyMinutes: average, baseline: baselineMinutes)
     }
 
     /// Minutes a day still available before the flame drops a rung; `nil` at the
     /// bottom of the ladder, or with no run going.
     var levelHeadroom: Double? {
         guard let average = averageUnblockedMinutes else { return nil }
-        return streakLevel.headroom(atDailyMinutes: average)
+        return streakLevel.headroom(atDailyMinutes: average, baseline: baselineMinutes)
     }
 
     /// True only while the penalty is really costing a rung. At the bottom of
@@ -125,7 +137,7 @@ final class AppModel: ObservableObject {
                 date: date,
                 key: key,
                 minutes: minutes,
-                level: StreakLevel.level(forDailyMinutes: Double(minutes))
+                level: StreakLevel.level(forDailyMinutes: Double(minutes), baseline: baselineMinutes)
             )
         }
     }
@@ -278,6 +290,7 @@ final class AppModel: ObservableObject {
         body(&updated)
         updated.breaksPerDay = BreakRules.clampBreaksPerDay(updated.breaksPerDay)
         updated.breakMinutes = BreakRules.clampMinutes(updated.breakMinutes)
+        updated.baselineMinutes = updated.baselineMinutes.map(BreakRules.clampBaselineMinutes)
         guard updated != settings else { return }
         settings = updated
         BreakStore.saveSettings(updated)

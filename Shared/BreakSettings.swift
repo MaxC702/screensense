@@ -11,15 +11,31 @@ struct BreakSettings: Codable, Equatable {
     var breakMinutes: Int
     /// Enforced wait after a break ends before another may start.
     var cooldownMinutes: Int
+    /// Minutes a day the user reckons they were spending in these apps before
+    /// any of this. The figure the ladder's rungs are cut from.
+    ///
+    /// Optional because "not asked yet" is a real state and has to be told apart
+    /// from any particular answer — it is what makes the Streak tab put the
+    /// question the first time it is opened. Until then the ladder runs on
+    /// `ScreenTimeBand.unanswered`, whose rungs are within a minute of the fixed
+    /// ones this replaced.
+    var baselineMinutes: Int?
+
+    /// The figure to actually cut rungs from, answered or not.
+    var effectiveBaselineMinutes: Int {
+        baselineMinutes ?? ScreenTimeBand.unanswered.baselineMinutes
+    }
 
     init(
         breaksPerDay: Int = BreakRules.defaultBreaksPerDay,
         breakMinutes: Int = BreakRules.defaultBreakMinutes,
-        cooldownMinutes: Int = BreakRules.defaultCooldownMinutes
+        cooldownMinutes: Int = BreakRules.defaultCooldownMinutes,
+        baselineMinutes: Int? = nil
     ) {
         self.breaksPerDay = BreakRules.clampBreaksPerDay(breaksPerDay)
         self.breakMinutes = BreakRules.clampMinutes(breakMinutes)
         self.cooldownMinutes = BreakRules.clampCooldownMinutes(cooldownMinutes)
+        self.baselineMinutes = baselineMinutes.map(BreakRules.clampBaselineMinutes)
     }
 
     /// Decoded field-by-field with `decodeIfPresent` so that adding a setting in
@@ -45,5 +61,10 @@ struct BreakSettings: Codable, Equatable {
             try container.decodeIfPresent(Int.self, forKey: .cooldownMinutes)
                 ?? BreakRules.defaultCooldownMinutes
         )
+        // Absent means never asked, which is exactly what the optional is for —
+        // there is no default to fall back on here, only a question to put.
+        baselineMinutes = try container
+            .decodeIfPresent(Int.self, forKey: .baselineMinutes)
+            .map(BreakRules.clampBaselineMinutes)
     }
 }

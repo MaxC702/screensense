@@ -60,6 +60,17 @@ enum BreakRules {
     static func clampCooldownMinutes(_ minutes: Int) -> Int {
         min(max(minutes, minCooldownMinutes), maxCooldownMinutes)
     }
+
+    /// Bounds on the usage figure the ladder is scaled against. Half an hour is
+    /// below anything worth blocking for; sixteen hours is more waking day than
+    /// anyone has. Neither is a number the UI can produce — they are here to
+    /// stop a payload from another build cutting an absurd ladder.
+    static let minBaselineMinutes = 30
+    static let maxBaselineMinutes = 16 * 60
+
+    static func clampBaselineMinutes(_ minutes: Int) -> Int {
+        min(max(minutes, minBaselineMinutes), maxBaselineMinutes)
+    }
 }
 
 /// Everything the four processes need to agree on, small enough to round-trip

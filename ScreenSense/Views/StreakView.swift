@@ -13,6 +13,11 @@ struct StreakView: View {
     /// leaves each of them enough width to be labelled and read individually.
     private let window = 7
 
+    @State private var isAskingBaseline = false
+    /// Asked at most once per launch. The sheet is dismissible, and re-opening
+    /// it every time this tab is touched would turn one question into nagging.
+    @State private var hasOfferedBaseline = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -30,6 +35,14 @@ struct StreakView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .tint(Theme.accentSoft)
+        .onAppear {
+            guard !model.hasChosenBaseline, !hasOfferedBaseline else { return }
+            hasOfferedBaseline = true
+            isAskingBaseline = true
+        }
+        .sheet(isPresented: $isAskingBaseline) {
+            BaselineSheet().environmentObject(model)
+        }
     }
 
     // MARK: - Hero
@@ -128,6 +141,32 @@ struct StreakView: View {
         }
     }
 
+    // MARK: - What the rungs are cut from
+
+    /// The rungs are a share of what these apps used to take, so the figure they
+    /// are a share *of* has to be visible and changeable. Sat under the card that
+    /// explains the level rather than buried in Settings, which is the screen for
+    /// what you are allowed rather than for what you are measured against.
+    private var baselineRow: some View {
+        Button { isAskingBaseline = true } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Theme.faint)
+                Text(model.hasChosenBaseline
+                     ? "Scaled to \(model.baselineBand.phrase)"
+                     : "Scaled to a guess — say what you were on")
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.muted)
+                Spacer(minLength: 0)
+                Text(model.hasChosenBaseline ? "Change" : "Answer")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Theme.accentSoft)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Where the level comes from
 
     private var sourceCard: some View {
@@ -170,6 +209,14 @@ struct StreakView: View {
                     .foregroundColor(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            Text(ladderNote)
+                .font(.system(size: 11))
+                .foregroundColor(Theme.faint)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider().overlay(Theme.hairline)
+            baselineRow
         }
     }
 
@@ -193,6 +240,17 @@ struct StreakView: View {
 
     private func minutes(_ value: Double) -> String {
         value < 10 ? String(format: "%.1f", value) : "\(Int(value.rounded()))"
+    }
+
+    /// Spells out what the rung on show currently costs in minutes. The number
+    /// moves with the baseline, so leaving it implicit would make the ladder look
+    /// like it had changed its mind.
+    private var ladderNote: String {
+        let level = model.earnedStreakLevel
+        guard let ceiling = level.ceiling(baseline: model.baselineMinutes) else {
+            return "Ember is the bottom of the ladder — there is nothing below it to fall to."
+        }
+        return "\(level.name) is \(ceiling) min a day or less, cut from a starting point of \(model.baselineBand.phrase)."
     }
 
     private func pill(_ level: StreakLevel) -> some View {
