@@ -40,15 +40,13 @@ struct StreakView: View {
 
         return Card {
             HStack(spacing: 12) {
-                Image(systemName: days > 0 ? "flame.fill" : "flame")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundColor(days > 0 ? level.tint : Theme.faint)
+                StreakFlame(size: 30, lit: days > 0, broken: model.streakBrokenToday, tint: level.tint)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(days > 0 ? "\(days) day\(days == 1 ? "" : "s")" : "No streak yet")
+                    Text(heroTitle)
                         .font(Theme.display(24, .medium))
                         .monospacedDigit()
-                    Text(days > 0 ? "at \(level.name)" : "Switch blocking on to start one")
+                    Text(heroSubtitle)
                         .font(.system(size: 12.5))
                         .foregroundColor(days > 0 ? level.tint : Theme.muted)
                 }
@@ -74,6 +72,22 @@ struct StreakView: View {
                     .foregroundColor(Theme.muted)
             }
         }
+    }
+
+    /// The day a run is lost is not a day with no streak on it — it is a day
+    /// with a streak *missing* from it, and the difference is the whole point of
+    /// holding the count at zero until midnight.
+    private var heroTitle: String {
+        if model.streakDays > 0 { return "\(model.streakDays) day\(model.streakDays == 1 ? "" : "s")" }
+        return model.streakBrokenToday ? "Streak broken" : "No streak yet"
+    }
+
+    private var heroSubtitle: String {
+        if model.streakDays > 0 { return "at \(model.streakLevel.name)" }
+        guard model.streakBrokenToday else { return "Switch blocking on to start one" }
+        return model.state.blockingEnabled
+            ? "Day 1 starts tomorrow"
+            : "Switch blocking on; day 1 starts tomorrow"
     }
 
     /// Says what the gauge in the badge means, in the one place there is room to.
@@ -149,7 +163,9 @@ struct StreakView: View {
                     Spacer()
                     pill(model.configuredStreakLevel)
                 }
-                Text("Nothing running to measure. Switch blocking on and the flame follows what you actually spend.")
+                Text(model.streakBrokenToday
+                     ? "A lost run costs the rest of the day, so there is nothing here to average yet. The flame relights on tomorrow's minutes."
+                     : "Nothing running to measure. Switch blocking on and the flame follows what you actually spend.")
                     .font(.system(size: 11.5))
                     .foregroundColor(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -164,7 +180,7 @@ struct StreakView: View {
             fact("checkmark.circle.fill", "Breaks don't cost the streak — only the minutes count.", tint: Theme.accentSoft)
             fact(
                 "power",
-                "Turning blocking off does: the days reset and the flame drops a rung. \(StreakLevel.relightDays) days of blocking wins the rung back.",
+                "Turning blocking off does: the day is spent, the count restarts tomorrow, and the flame drops a rung. \(StreakLevel.relightDays) days of blocking wins the rung back.",
                 tint: .orange
             )
             if model.bestStreak > 0 {

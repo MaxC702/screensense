@@ -147,6 +147,119 @@ struct StreakLadder: View {
     }
 }
 
+/// The flame in its three states: lit, never started, and broken.
+///
+/// The broken one is not just the unlit one in grey. Losing a run and never
+/// having had one are different facts, and until the day rolls over they are the
+/// only two things a zero can mean — so the badge says which by being visibly
+/// split rather than merely dark.
+struct StreakFlame: View {
+    let size: CGFloat
+    let lit: Bool
+    /// A run was lost today. Ignored while `lit`, which cannot happen on the
+    /// same day as a loss.
+    var broken = false
+    /// The level's colour, which only a lit flame takes. A broken one is grey by
+    /// definition — there is no rung being held to show the colour of.
+    var tint: Color = Theme.faint
+
+    var body: some View {
+        if lit {
+            symbol("flame.fill", tint)
+        } else if broken {
+            BrokenFlame(size: size)
+        } else {
+            symbol("flame", Theme.faint)
+        }
+    }
+
+    private func symbol(_ name: String, _ colour: Color) -> some View {
+        Image(systemName: name)
+            .font(.system(size: size, weight: .semibold))
+            .foregroundColor(colour)
+    }
+}
+
+/// A filled flame cracked down the middle, the two halves hinged apart at the
+/// bottom like a shell.
+///
+/// Filled rather than outlined, because the break has to be read as a break: a
+/// gap through a hollow glyph is just another gap in an outline, whereas a gap
+/// through a solid one is a thing that has come apart. The halves are cut from
+/// the same symbol, so the crack is the space between them rather than a line
+/// drawn over the top — which means it stays a crack against any background the
+/// badge sits on.
+struct BrokenFlame: View {
+    let size: CGFloat
+    var tint: Color = Theme.faint
+
+    /// How far each half swings open, in degrees, turned about its foot.
+    ///
+    /// A rotation rather than a slide, which is the whole difference between a
+    /// crack and a cut. Something that splits stays joined at one end and gapes
+    /// at the other, so the break is widest at the tip — where a flame is
+    /// thinnest and the loss shows most — and closes to nothing at the base.
+    private var swing: Double { 4.5 }
+
+    /// A hair of daylight along the rest of the seam, so the two halves read as
+    /// separated all the way down rather than merely hinged.
+    private var parting: CGFloat { size * 0.018 }
+
+    var body: some View {
+        ZStack {
+            half(leading: true)
+                .rotationEffect(.degrees(-swing), anchor: .bottom)
+                .offset(x: -parting)
+            half(leading: false)
+                .rotationEffect(.degrees(swing), anchor: .bottom)
+                .offset(x: parting)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func half(leading: Bool) -> some View {
+        Image(systemName: "flame.fill")
+            .font(.system(size: size, weight: .semibold))
+            .foregroundColor(tint)
+            .mask { Crack(leading: leading) }
+    }
+
+    /// Everything on one side of the zigzag. The seam runs past the top and
+    /// bottom of the box so the cut reaches the glyph however the symbol is
+    /// inset, and the half is closed off well outside the frame for the same reason.
+    private struct Crack: Shape {
+        let leading: Bool
+
+        /// Fractions of the icon's box, top to bottom. It wanders either side of
+        /// the middle rather than zigzagging evenly: a break follows whatever
+        /// line the material gives it, and a regular sawtooth reads as a
+        /// decoration rather than as damage.
+        private static let seam: [CGPoint] = [
+            CGPoint(x: 0.52, y: -0.30),
+            CGPoint(x: 0.46, y: 0.18),
+            CGPoint(x: 0.55, y: 0.38),
+            CGPoint(x: 0.47, y: 0.60),
+            CGPoint(x: 0.53, y: 0.82),
+            CGPoint(x: 0.50, y: 1.30),
+        ]
+
+        func path(in rect: CGRect) -> Path {
+            let points = Crack.seam.map {
+                CGPoint(x: rect.minX + $0.x * rect.width, y: rect.minY + $0.y * rect.height)
+            }
+            let edge = leading ? rect.minX - rect.width : rect.maxX + rect.width
+
+            var path = Path()
+            path.move(to: points[0])
+            for point in points.dropFirst() { path.addLine(to: point) }
+            path.addLine(to: CGPoint(x: edge, y: points[points.count - 1].y))
+            path.addLine(to: CGPoint(x: edge, y: points[0].y))
+            path.closeSubpath()
+            return path
+        }
+    }
+}
+
 /// How much is left in the current rung, drawn as a little upright cell.
 ///
 /// The ladder says which rung you are on; this says where you are standing on

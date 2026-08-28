@@ -89,6 +89,13 @@ struct BreakState: Codable, Equatable {
     /// subtraction means a streak stays correct across days when the app was
     /// never opened — which is precisely the streak this app wants to reward.
     var streakStartedOn: Date?
+    /// The day the last run was lost on; `nil` when none has been.
+    ///
+    /// The day a streak dies is spent. Without this, switching blocking off and
+    /// straight back on reads as a fresh day one within seconds of losing the
+    /// old one, which makes the loss cost nothing at all — the count is back and
+    /// the flame is lit before you have put the phone down.
+    var streakBrokenOn: Date?
     /// Longest run reached so far, so breaking a streak leaves something to aim
     /// at rather than erasing the evidence that it happened.
     var bestStreak: Int
@@ -115,6 +122,7 @@ struct BreakState: Codable, Equatable {
         cooldownUntil: Date? = nil,
         blockingEnabled: Bool = false,
         streakStartedOn: Date? = nil,
+        streakBrokenOn: Date? = nil,
         bestStreak: Int = 0,
         levelPenaltyRungs: Int = 0,
         unblockedMinutes: [String: Int] = [:]
@@ -126,6 +134,7 @@ struct BreakState: Codable, Equatable {
         self.cooldownUntil = cooldownUntil
         self.blockingEnabled = blockingEnabled
         self.streakStartedOn = streakStartedOn
+        self.streakBrokenOn = streakBrokenOn
         self.bestStreak = bestStreak
         self.levelPenaltyRungs = levelPenaltyRungs
         self.unblockedMinutes = unblockedMinutes
@@ -146,6 +155,7 @@ struct BreakState: Codable, Equatable {
         cooldownUntil = try container.decodeIfPresent(Date.self, forKey: .cooldownUntil)
         blockingEnabled = try container.decodeIfPresent(Bool.self, forKey: .blockingEnabled) ?? false
         streakStartedOn = try container.decodeIfPresent(Date.self, forKey: .streakStartedOn)
+        streakBrokenOn = try container.decodeIfPresent(Date.self, forKey: .streakBrokenOn)
         bestStreak = max(0, try container.decodeIfPresent(Int.self, forKey: .bestStreak) ?? 0)
         levelPenaltyRungs = max(0, try container.decodeIfPresent(Int.self, forKey: .levelPenaltyRungs) ?? 0)
         unblockedMinutes = try container.decodeIfPresent([String: Int].self, forKey: .unblockedMinutes) ?? [:]
@@ -216,6 +226,20 @@ struct BreakState: Codable, Equatable {
     /// is what `endStreak` is for.
     func streakDays(now: Date = .now, calendar: Calendar = .current) -> Int {
         guard let streakStartedOn else { return 0 }
+
+        // A run begun on the day an earlier one died does not get to claim that
+        // day: it is already spent. Counting from the break rather than from the
+        // switch is what holds the number at zero for the rest of the day and
+        // lets it read 1 tomorrow.
+        if let streakBrokenOn, startedInsideBrokenDay(calendar: calendar) {
+            let since = calendar.dateComponents(
+                [.day],
+                from: calendar.startOfDay(for: streakBrokenOn),
+                to: calendar.startOfDay(for: now)
+            ).day ?? 0
+            return max(0, since)
+        }
+
         let elapsed = calendar.dateComponents(
             [.day],
             from: calendar.startOfDay(for: streakStartedOn),
@@ -225,10 +249,30 @@ struct BreakState: Codable, Equatable {
         return max(0, elapsed) + 1
     }
 
+    /// Whether the run in progress was begun on or before the day the last one
+    /// was lost — the case where its opening day has already been spent.
+    private func startedInsideBrokenDay(calendar: Calendar) -> Bool {
+        guard let streakStartedOn, let streakBrokenOn else { return false }
+        return calendar.startOfDay(for: streakStartedOn) <= calendar.startOfDay(for: streakBrokenOn)
+    }
+
+    /// Whether a run was lost today. The flame stays out and the count stays at
+    /// zero for the rest of the day however quickly blocking goes back on, so
+    /// this is what the screens ask when they need to say *why*.
+    func streakBrokenToday(now: Date = .now, calendar: Calendar = .current) -> Bool {
+        guard let streakBrokenOn else { return false }
+        return calendar.isDate(streakBrokenOn, inSameDayAs: now)
+    }
+
     /// Called when blocking is switched on. An existing run is left alone, so
     /// that a repair pass or a second write can't quietly restart the count.
-    mutating func beginStreakIfNeeded(now: Date = .now) {
+    mutating func beginStreakIfNeeded(now: Date = .now, calendar: Calendar = .current) {
         guard streakStartedOn == nil else { return }
+        // A loss from an earlier day has already been served. Carrying it into
+        // this run would dock it a day it does not owe.
+        if let streakBrokenOn, !calendar.isDate(streakBrokenOn, inSameDayAs: now) {
+            self.streakBrokenOn = nil
+        }
         streakStartedOn = now
     }
 
@@ -250,6 +294,7 @@ struct BreakState: Codable, Equatable {
         }
 
         streakStartedOn = nil
+        streakBrokenOn = now
     }
 
     /// The penalty still in force, which is not always the one on record.

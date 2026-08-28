@@ -73,6 +73,12 @@ struct HomeView: View {
         let on = model.state.blockingEnabled
         let status = Text(on ? "Blocking is on" : "Blocking is off")
             .foregroundColor(Theme.muted)
+        // Nothing about a lost streak belongs on this line. Sat next to
+        // "Blocking is on", a phrase like "starts again tomorrow" reads as a
+        // claim about the blocking rather than about the count — and there is no
+        // wording that reliably survives being read a word and a half away from
+        // the wrong subject. The broken flame carries it instead, and the tab it
+        // opens is where the sentence goes.
         guard on, model.streakDays > 0 else { return status }
 
         // While relighting, this says so *instead of* naming the level. Both
@@ -105,9 +111,7 @@ struct HomeView: View {
 
         return Button(action: onShowStreak) {
             HStack(spacing: 5) {
-                Image(systemName: lit ? "flame.fill" : "flame")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(lit ? tint : Theme.faint)
+                StreakFlame(size: 13, lit: lit, broken: model.streakBrokenToday, tint: tint)
                 Text("\(days)")
                     .font(Theme.display(17, .demiBold))
                     .monospacedDigit()
@@ -135,7 +139,9 @@ struct HomeView: View {
     }
 
     private var badgeLabel: String {
-        guard model.streakDays > 0 else { return "No streak" }
+        guard model.streakDays > 0 else {
+            return model.streakBrokenToday ? "Streak broken today, day 1 starts tomorrow" : "No streak"
+        }
         let base = "\(model.streakDays) day \(model.streakLevel.name) streak"
         guard let headroom = model.levelHeadroom, let below = model.streakLevel.previous else {
             return base

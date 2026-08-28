@@ -143,7 +143,7 @@ struct SettingsView: View {
     /// not an unlocked phone", and a break costs nothing but a break.
     private var unblockAlertMessage: String {
         let days = model.streakDays
-        var lines = ["Turning blocking off unblocks everything and resets your streak to zero. \(days) day\(days == 1 ? "" : "s") gone."]
+        var lines = ["Turning blocking off unblocks everything and resets your streak to zero. \(days) day\(days == 1 ? "" : "s") gone, and today goes with them — switching back on this afternoon does not buy day 1 back, the next run starts tomorrow."]
 
         // Only promised when it will actually happen, so the alert never
         // threatens a consequence the ladder cannot deliver.
@@ -172,9 +172,17 @@ struct SettingsView: View {
     private var blockingSubtitle: String {
         if model.state.blockingEnabled {
             let days = model.streakDays
-            guard days > 0 else { return "Stays on until you spend a break" }
+            // Names the streak outright. This sits under "Block these apps",
+            // where anything that merely says "starts again tomorrow" would
+            // sound like a statement about the blocking itself.
+            guard days > 0 else {
+                return model.streakBrokenToday
+                    ? "Streak lost today — the next one starts tomorrow"
+                    : "Stays on until you spend a break"
+            }
             return "\(days)-day streak — turning this off resets it"
         }
+        if model.streakBrokenToday { return "Streak lost today — the next one starts tomorrow" }
         guard model.bestStreak > 0 else { return "Stays on until you spend a break" }
         return "Your best run was \(model.bestStreak) day\(model.bestStreak == 1 ? "" : "s") — start again"
     }

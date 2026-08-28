@@ -49,6 +49,12 @@ final class AppModel: ObservableObject {
     var streakDays: Int { state.streakDays(now: now) }
     var bestStreak: Int { state.bestStreak }
 
+    /// True for the rest of a day a run was lost on, whether or not blocking has
+    /// since gone back on. The count is held at zero and the flame is out for
+    /// all of it — this is what lets the screens say so rather than looking as
+    /// though the badge has simply failed to light.
+    var streakBrokenToday: Bool { state.streakBrokenToday(now: now) }
+
     /// What the budget on its own is worth — the level of someone who spends
     /// every minute they allow themselves. Settings shows this, because that is
     /// the screen that sets it, and it moves under the sliders as they drag.
