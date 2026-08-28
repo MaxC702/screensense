@@ -202,8 +202,15 @@ struct SettingsView: View {
     /// The level is the reason to touch the sliders at all, and it moves while
     /// they are being dragged — which is the entire feedback loop. Putting it
     /// below them would hide the consequence under the cause.
+    ///
+    /// Shows the level the flame shows, not the one the allowance alone is worth.
+    /// Those two are genuinely different facts — what you are allowed against
+    /// what you actually spend — but a person reading a blue flame on Home and
+    /// the words "White heat" here does not receive two facts, they receive a
+    /// contradiction. The allowance's own worth is still said, in the sentence
+    /// under the ladder, where it is labelled as being about the allowance.
     private var levelCard: some View {
-        let level = model.configuredStreakLevel
+        let level = model.streakLevel
 
         return Card {
             HStack(spacing: 10) {
@@ -223,19 +230,16 @@ struct SettingsView: View {
                     .background(level.tint.opacity(0.16), in: Capsule())
             }
 
-            StreakLadder(level: level)
+            StreakLadder(level: level, target: model.earnedStreakLevel)
 
-            Text(nextLevelHint)
+            Text(flameNote)
                 .font(.system(size: 11))
                 .foregroundColor(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
 
-            // The budget is a worst case, and since the flame started following
-            // what is actually spent the two are usually different. Saying so
-            // here is what stops this card and the Streak tab looking like they
-            // disagree.
-            Text(earnedNote)
+            Text(allowanceNote)
                 .font(.system(size: 11))
-                .foregroundColor(Theme.muted)
+                .foregroundColor(Theme.faint)
                 .fixedSize(horizontal: false, vertical: true)
 
             if model.isRelighting {
@@ -265,29 +269,35 @@ struct SettingsView: View {
     private var outgrownBaselineNote: String? {
         guard model.hasChosenBaseline, model.earnedStreakLevel == .blueFlame else { return nil }
         guard model.baselineBand != .upToThree else { return nil }
-        return "At the top of the ladder. If these apps are lighter now than the figure above, update it — a stale starting point makes this easier than it should be."
+        return "You have reached the highest level. If you no longer spend \(model.baselineBand.phrase) on these apps, tap Change above — the levels are based on that number, so an out-of-date one makes them too easy to reach."
     }
 
-    /// Ties the slider to the thing it does not control, so nobody drags this
-    /// expecting the flame on the other tab to follow.
-    private var earnedNote: String {
+    /// What the badge above is actually reading, so the number on this card and
+    /// the flame on Home are visibly the same number.
+    private var flameNote: String {
         guard let average = model.averageUnblockedMinutes else {
-            return "That is the most you can spend. The flame follows what you actually spend, which needs blocking switched on to mean anything."
+            return "Your level follows what you actually spend. With no day on the board yet it goes by the allowance below."
         }
         let spent = average < 10 ? String(format: "%.1f", average) : "\(Int(average.rounded()))"
-        return "That is the most you can spend. You are actually spending \(spent) min a day, which is \(model.earnedStreakLevel.name)."
+        return "Your level follows what you actually spend: \(spent) min a day."
+    }
+
+    /// Ties the sliders to the thing they *do* control, which is the worst case
+    /// rather than the level — dragging them does not move the flame, it moves
+    /// the ceiling the flame could rise to.
+    private var allowanceNote: String {
+        let budget = model.dailyUnblockedMinutes
+        let worth = model.configuredStreakLevel
+        let base = "Spending the full \(budget) min a day would be \(worth.name)."
+        guard let next = worth.next, let shed = model.minutesToNextLevel else {
+            return base + " Nothing is stricter than that."
+        }
+        return base + " \(shed) fewer minute\(shed == 1 ? "" : "s") a day would make it \(next.name)."
     }
 
     private var relightHint: String {
         let days = model.daysToRelight
         return "\(days) more day\(days == 1 ? "" : "s") of blocking puts it back."
-    }
-
-    private var nextLevelHint: String {
-        guard let next = model.configuredStreakLevel.next, let shed = model.minutesToNextLevel else {
-            return "Nothing is stricter than this."
-        }
-        return "\(shed) fewer minute\(shed == 1 ? "" : "s") a day reaches \(next.name)."
     }
 
     // MARK: - Breaks per day
