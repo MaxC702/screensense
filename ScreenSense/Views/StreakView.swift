@@ -203,6 +203,16 @@ struct StreakView: View {
 
             Divider().overlay(Theme.hairline)
             baselineRow
+
+            if let harder = model.harderBand {
+                Label(
+                    "Blue flame \(model.daysAtSummit) days running — this ladder has done its job. Switch to \(harder.title.lowercased()), where Blue flame means \(StreakLevel.blueFlame.ceiling(band: harder) ?? 0) min a day.",
+                    systemImage: "arrow.up.right"
+                )
+                .font(.system(size: 11))
+                .foregroundColor(Theme.accentSoft)
+                .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -236,7 +246,7 @@ struct StreakView: View {
         guard let ceiling = level.ceiling(baseline: model.baselineMinutes) else {
             return "Ember is the bottom of the ladder — there is nothing below it to fall to."
         }
-        return "\(level.name) is \(ceiling) min a day or less, cut from a starting point of \(model.baselineBand.phrase)."
+        return "\(level.name) is \(ceiling) min a day or less on the \(model.baselineBand.title.lowercased()) ladder."
     }
 
     private func pill(_ level: StreakLevel) -> some View {

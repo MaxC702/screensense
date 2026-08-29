@@ -67,6 +67,56 @@ final class AppModel: ObservableObject {
         updateSettings { $0.baselineMinutes = band.baselineMinutes }
     }
 
+    /// The harder ladder to move to, once this one has been beaten; `nil` while
+    /// there is still climbing to do, or at the hardest band already.
+    ///
+    /// This is the mechanic that keeps the bands honest. A generous ladder for
+    /// somebody coming off six hours a day is the right thing to hand them and
+    /// the wrong thing to leave them on: the summit there is 55 minutes a day,
+    /// which is an enormous drop the first time and a formality by the second
+    /// month. Reaching Blue flame is not the end of the ladder, it is the cue to
+    /// pick up the next one.
+    /// Finished days at the top rung, counting back from yesterday and stopping
+    /// at the first day that was not one.
+    ///
+    /// Today is deliberately not counted. It is only partly spent, so every
+    /// morning starts at zero minutes and reads as Blue flame before anything
+    /// has been earned — including it would let the suggestion fire at breakfast
+    /// on the strength of two days and an empty clock.
+    var daysAtSummit: Int {
+        let finished = dailyLevels(days: BreakRules.usageWindowDays + 1).dropLast()
+        var days = 0
+        for point in finished.reversed() {
+            guard point.level == .blueFlame else { break }
+            days += 1
+        }
+        return days
+    }
+
+    /// Walks down until it finds a ladder with something left to climb, rather
+    /// than simply offering the next one. Stepping down one band at a time is
+    /// self-correcting but slow: someone at thirty minutes a day is above Blue
+    /// flame on neither the six-hour ladder nor the one under it, and offering
+    /// a move that leaves them exactly where they are wastes the moment. Stops
+    /// at the hardest band, which is the one place worth sitting on top of.
+    var harderBand: ScreenTimeBand? {
+        guard hasChosenBaseline, earnedStreakLevel == .blueFlame else { return nil }
+        // Held, not touched. One day at the summit is a day; three is a habit,
+        // and only a habit is evidence the ladder has stopped asking anything.
+        guard daysAtSummit >= StreakLevel.daysAtSummitBeforeStepUp else { return nil }
+        guard let average = averageUnblockedMinutes else { return baselineBand.harder }
+
+        var candidate = baselineBand.harder
+        while let band = candidate {
+            if let summit = StreakLevel.blueFlame.ceiling(band: band), average > Double(summit) {
+                return band
+            }
+            guard let next = band.harder else { return band }
+            candidate = next
+        }
+        return nil
+    }
+
     /// What the budget on its own is worth — the level of someone who spends
     /// every minute they allow themselves. Settings shows this, because that is
     /// the screen that sets it, and it moves under the sliders as they drag.

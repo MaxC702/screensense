@@ -257,21 +257,6 @@ struct SettingsView: View {
         }
     }
 
-    /// The failure this row exists to catch, said out loud at the moment it is
-    /// happening.
-    ///
-    /// A baseline is a claim about the past, and this app's whole purpose is to
-    /// make that claim stop being true. Somebody who genuinely gets from six
-    /// hours to two and never comes back here keeps a Blue flame cut from the
-    /// six — a top rung earned against a person they no longer are. It is only
-    /// worth raising once they are actually sitting at the top, which is the
-    /// point at which the ladder has stopped asking anything of them.
-    private var outgrownBaselineNote: String? {
-        guard model.hasChosenBaseline, model.earnedStreakLevel == .blueFlame else { return nil }
-        guard model.baselineBand != .underTwo else { return nil }
-        return "You have reached the highest level. If you no longer spend \(model.baselineBand.phrase) on these apps, tap Change above — the levels are based on that number, so an out-of-date one makes them too easy to reach."
-    }
-
     /// What the badge above is actually reading, so the number on this card and
     /// the flame on Home are visibly the same number.
     private var flameNote: String {
@@ -298,6 +283,22 @@ struct SettingsView: View {
     private var relightHint: String {
         let days = model.daysToRelight
         return "\(days) more day\(days == 1 ? "" : "s") of blocking puts it back."
+    }
+
+    /// The step-up, offered once it has been held rather than merely touched.
+    ///
+    /// A ladder you can sit on top of stops being a ladder. Three days of Blue
+    /// flame means this band has done its job and is now the easy setting;
+    /// saying so, with both numbers, is what turns a finished climb into the
+    /// next one. Never shown on the hardest band — `harderBand` returns nil
+    /// there, because there is nowhere to send someone who is already at the top
+    /// of the last ladder, and inventing somewhere would be a lie.
+    private var outgrownBaselineNote: String? {
+        guard let harder = model.harderBand else { return nil }
+        let here = StreakLevel.blueFlame.ceiling(band: model.baselineBand) ?? 0
+        let there = StreakLevel.blueFlame.ceiling(band: harder) ?? 0
+        let days = model.daysAtSummit
+        return "You have held Blue flame for \(days) day\(days == 1 ? "" : "s") running. That is the sign this ladder has done its job — tap Change above and pick \(harder.title.lowercased()), where every level is stricter and Blue flame means \(there) minutes a day rather than \(here)."
     }
 
     // MARK: - Breaks per day

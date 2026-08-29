@@ -93,6 +93,15 @@ enum StreakLevel: Int, CaseIterable, Comparable {
     /// enough to be worth starting.
     static let relightDays = 3
 
+    /// Finished days at the top rung before the app suggests a harder ladder.
+    ///
+    /// Three rather than one, because a single day at the summit is a day, not a
+    /// habit — a quiet Sunday can produce one without anything having changed.
+    /// Three in a row is the shortest run that cannot be an accident, and it is
+    /// the same number a lost rung costs to win back, so the app asks for the
+    /// same evidence in both directions.
+    static let daysAtSummitBeforeStepUp = 3
+
     /// A run has to have survived a midnight before losing it costs a rung.
     ///
     /// Switching blocking on and straight off again while picking apps is not a

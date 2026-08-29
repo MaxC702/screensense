@@ -68,30 +68,45 @@ enum ScreenTimeBand: Int, CaseIterable, Codable {
         }
     }
 
+    /// The one scale every band's rungs are cut from, loosest first.
+    ///
+    /// Each step is roughly half again the one below it, which is what makes the
+    /// difference between rungs feel like a difference. Minutes are not linear
+    /// in effort: going from 80 a day to 55 is a smaller act of will than going
+    /// from 20 to 10, and a ladder with even spacing would have priced those the
+    /// same.
+    private static let scale = [10, 20, 35, 55, 80, 110, 140]
+
     /// Most unblocked minutes a day each rung tolerates, Flame first and Blue
     /// flame last. Ember is everything looser than the first number.
     ///
-    /// A hand-set table rather than one percentage applied to everybody, because
-    /// a flat share cannot be right at both ends of the ladder at once. The
-    /// lower rungs *should* scale with where you started — forty minutes is a
-    /// failure from two hours and a real gain from seven, which is the whole
-    /// point of asking. The top rung should not. Someone down to ten minutes a
-    /// day has effectively stopped, and that is equally true whether they came
-    /// from two hours or seven; scaling it would have put Blue flame at two
-    /// minutes a day for a light user, which is not a rung, it is a taunt.
+    /// Each band is a four-rung window onto `scale`, slid one step further out
+    /// for every band up. That is the whole design: **stepping down a band makes
+    /// every rung exactly one rung harder**, and the summit of one difficulty is
+    /// the middle of the next one down.
     ///
-    /// So the bands fan out at the bottom and converge at the top: 22 through 90
-    /// for Flame, but 6 through 12 for Blue flame. The ladder still says a heavy
-    /// user's forty minutes is worth more — it just stops pretending the summit
-    /// is a different mountain for each of them.
+    /// An earlier version converged the top rungs — 6, 8, 10, 12 across the four
+    /// bands — on the reasoning that ten minutes a day is quitting no matter
+    /// where you came from. That reasoning was sound and the result was useless:
+    /// two minutes between one person's summit and another's is not a difference
+    /// anybody can feel, and it made the bands cosmetic. Somebody dropping from
+    /// six hours to under one has done an enormous thing and should be told so,
+    /// and Blue flame for them is 55 minutes a day, not 12.
+    ///
+    /// What stops that being a gift is the next paragraph of the design rather
+    /// than a number: reaching Blue flame is the signal to move down a band. The
+    /// easiest ladder is meant to be beaten and left. Only `underTwo` is a place
+    /// to stay, and its Blue flame — ten minutes a day — is the real summit.
     var rungCeilings: [Int] {
-        switch self {
-        case .underTwo: return [22, 14, 10, 6]
-        case .twoToThree: return [35, 22, 14, 8]
-        case .threeToSix: return [60, 35, 20, 10]
-        case .overSix: return [90, 50, 28, 12]
-        }
+        // Flame, Blaze, White heat, Blue flame: the window read outwards-in.
+        let top = rawValue + 3
+        return (0...3).map { ScreenTimeBand.scale[top - $0] }
     }
+
+    /// The next difficulty up, which is the band *below* this one — the ladder
+    /// gets harder as the starting point gets lighter. `nil` at `underTwo`,
+    /// where there is nothing left to graduate to.
+    var harder: ScreenTimeBand? { ScreenTimeBand(rawValue: rawValue - 1) }
 
     /// Used until the question has been answered.
     ///
