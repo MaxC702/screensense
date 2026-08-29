@@ -206,7 +206,7 @@ struct StreakView: View {
 
             if let harder = model.harderBand {
                 Label(
-                    "Blue flame \(model.daysAtSummit) days running — this ladder has done its job. Switch to \(harder.title.lowercased()), where Blue flame means \(StreakLevel.blueFlame.ceiling(band: harder) ?? 0) min a day.",
+                    "Blue flame for \(model.daysAtSummit) days — too easy now. Tap Change and pick \(harder.title.lowercased()): Blue flame would then mean cutting \(summitDrop(to: harder)) more minutes a day, down to \(StreakLevel.blueFlame.ceiling(band: harder) ?? 0) from \(StreakLevel.blueFlame.ceiling(band: model.baselineBand) ?? 0).",
                     systemImage: "arrow.up.right"
                 )
                 .font(.system(size: 11))
@@ -238,6 +238,16 @@ struct StreakView: View {
         value < 10 ? String(format: "%.1f", value) : "\(Int(value.rounded()))"
     }
 
+    /// Minutes a day that would have to come *off* to hold Blue flame on a
+    /// harder band. Named as a cut rather than left for the reader to subtract:
+    /// "Blue flame would need 35 min a day" can be read as thirty-five *more*,
+    /// which says the opposite of what is meant.
+    private func summitDrop(to harder: ScreenTimeBand) -> Int {
+        let here = StreakLevel.blueFlame.ceiling(band: model.baselineBand) ?? 0
+        let there = StreakLevel.blueFlame.ceiling(band: harder) ?? 0
+        return max(0, here - there)
+    }
+
     /// Spells out what the rung on show currently costs in minutes. The number
     /// moves with the baseline, so leaving it implicit would make the ladder look
     /// like it had changed its mind.
@@ -246,7 +256,7 @@ struct StreakView: View {
         guard let ceiling = level.ceiling(baseline: model.baselineMinutes) else {
             return "Ember is the bottom of the ladder — there is nothing below it to fall to."
         }
-        return "\(level.name) is \(ceiling) min a day or less on the \(model.baselineBand.title.lowercased()) ladder."
+        return "\(level.name) means \(ceiling) min a day or less for a starting point of \(model.baselineBand.phrase)."
     }
 
     private func pill(_ level: StreakLevel) -> some View {

@@ -285,20 +285,27 @@ struct SettingsView: View {
         return "\(days) more day\(days == 1 ? "" : "s") of blocking puts it back."
     }
 
-    /// The step-up, offered once it has been held rather than merely touched.
+    /// The step-up, offered once the top rung has been held rather than touched.
     ///
-    /// A ladder you can sit on top of stops being a ladder. Three days of Blue
-    /// flame means this band has done its job and is now the easy setting;
-    /// saying so, with both numbers, is what turns a finished climb into the
-    /// next one. Never shown on the hardest band — `harderBand` returns nil
-    /// there, because there is nowhere to send someone who is already at the top
-    /// of the last ladder, and inventing somewhere would be a lie.
+    /// Says the plain thing: you are at the top, it is too easy, here is the
+    /// button and here is what changes. An earlier draft talked about a ladder
+    /// having "done its job", which is a metaphor the app never sets up and
+    /// which asks somebody a week into using it to work out what job a ladder
+    /// has. Both numbers are named because the trade is the whole message.
+    ///
+    /// Never shown on the hardest band — `harderBand` returns nil there, because
+    /// there is nowhere to send someone already at the top of the last one, and
+    /// inventing somewhere would be a lie.
     private var outgrownBaselineNote: String? {
         guard let harder = model.harderBand else { return nil }
         let here = StreakLevel.blueFlame.ceiling(band: model.baselineBand) ?? 0
         let there = StreakLevel.blueFlame.ceiling(band: harder) ?? 0
         let days = model.daysAtSummit
-        return "You have held Blue flame for \(days) day\(days == 1 ? "" : "s") running. That is the sign this ladder has done its job — tap Change above and pick \(harder.title.lowercased()), where every level is stricter and Blue flame means \(there) minutes a day rather than \(here)."
+        // Named as a cut, not as a new figure to subtract from the old one.
+        // "Blue flame would need 35 min a day" reads just as easily as
+        // thirty-five *more*, which is the opposite of what is being offered.
+        let drop = max(0, here - there)
+        return "You have been at Blue flame for \(days) day\(days == 1 ? "" : "s"), so this is too easy now. Tap Change above and pick \(harder.title.lowercased()) — every level gets stricter, and Blue flame would mean cutting \(drop) more minute\(drop == 1 ? "" : "s") a day, down to \(there) from \(here)."
     }
 
     // MARK: - Breaks per day
