@@ -40,7 +40,9 @@ struct SettingsView: View {
                 breaksPerDayCard
                 breakLengthCard
                 cooldownCard
+                #if DEBUG
                 diagnosticsLink
+                #endif
                 explainer
             }
             .padding(.horizontal, 17)
@@ -427,7 +429,19 @@ struct SettingsView: View {
             .foregroundColor(.orange)
     }
 
-    /// Temporary while the out-of-process timing is being pinned down on device.
+    /// A log reader for the three extensions, which have no console of their own
+    /// on a device that is not attached to Xcode. Debug builds only.
+    ///
+    /// It is a developer tool wearing a settings row: it answers "did the monitor
+    /// actually fire", which is the one question this architecture makes hard to
+    /// ask, and it is worthless to anybody who is not debugging it. Shipping it
+    /// would put a wall of timestamps in front of a user looking for the app
+    /// list, and invite App Review to wonder what is being recorded.
+    ///
+    /// `BreakLog` itself is left compiled in, so a development build installed on
+    /// the phone still has the whole history to read — which is exactly the case
+    /// this exists for.
+    #if DEBUG
     private var diagnosticsLink: some View {
         NavigationLink {
             DiagnosticsView()
@@ -450,6 +464,7 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
     }
+    #endif
 
     private var explainer: some View {
         VStack(alignment: .leading, spacing: 9) {

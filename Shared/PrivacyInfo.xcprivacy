@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Lives in Shared/ rather than in each target, because every target already
+	  compiles Shared/ and a privacy manifest is per *bundle* — the app and its
+	  three extensions each need one. Four copies would be four things to forget
+	  to update; this is one file that lands in all four.
+
+	  Nothing here is a judgement call. ScreenSense has no network code, so there
+	  is nothing to collect and nowhere to send it, and `FamilyControls` hands
+	  back opaque device-bound tokens rather than app identities — the app cannot
+	  learn which apps were blocked even if it wanted to.
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!--
+			  `UserDefaults` is reached in exactly one place — the App Group
+			  suite in AppIdentifiers.swift — and only so the app and its three
+			  extensions can agree on the break state. 1C8F.1 is the reason for
+			  precisely that: reading and writing defaults shared with the app's
+			  own extensions through an App Group. It is not CA92.1, which is
+			  narrower and covers only defaults the app alone can see.
+
+			  Reached at all only for payloads written by builds that predate the
+			  move to files; see BreakStore's migration path.
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
