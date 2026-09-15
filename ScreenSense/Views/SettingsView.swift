@@ -266,7 +266,9 @@ struct SettingsView: View {
             return "Your level follows what you actually spend. With no day on the board yet it goes by the allowance below."
         }
         let spent = average < 10 ? String(format: "%.1f", average) : "\(Int(average.rounded()))"
-        return "Your level follows what you actually spend: \(spent) min a day."
+        let base = "Your level follows what you actually spend: \(spent) min a day."
+        guard model.weekSpansBaselineChange else { return base }
+        return base + " Days before you changed where you started keep the level they earned then."
     }
 
     /// Ties the sliders to the thing they *do* control, which is the worst case

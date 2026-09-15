@@ -103,6 +103,31 @@ enum ScreenTimeBand: Int, CaseIterable, Codable {
         return (0...3).map { ScreenTimeBand.scale[top - $0] }
     }
 
+    /// Where `minutes` a day on this ladder would sit on `other`: the same rung,
+    /// the same distance through it.
+    ///
+    /// This is what lets a day keep the level it earned after the ladder under
+    /// it has changed. Changing band is a decision about today, so a week of
+    /// Blaze stays a week of Blaze — but the flame averages *minutes*, and
+    /// yesterday's minutes read against today's ceilings would land a rung off.
+    /// Moved across first, they average as what they were.
+    ///
+    /// Piecewise across the rungs rather than a single ratio, because the bands
+    /// are not scaled copies of each other and a ratio would carry a day over a
+    /// rung boundary. Ember has no ceiling to measure through, so above Flame
+    /// the Flame ceilings alone set the scale.
+    func equivalentMinutes(_ minutes: Double, on other: ScreenTimeBand) -> Double {
+        guard other != self else { return minutes }
+        // Blue flame's floor, then each ceiling on the way down to Flame.
+        let from = [0] + rungCeilings.reversed()
+        let to = [0] + other.rungCeilings.reversed()
+        for index in 1..<from.count where minutes <= Double(from[index]) {
+            let through = (minutes - Double(from[index - 1])) / Double(from[index] - from[index - 1])
+            return Double(to[index - 1]) + through * Double(to[index] - to[index - 1])
+        }
+        return minutes * Double(to[to.count - 1]) / Double(from[from.count - 1])
+    }
+
     /// The next difficulty up, which is the band *below* this one — the ladder
     /// gets harder as the starting point gets lighter. `nil` at `underTwo`,
     /// where there is nothing left to graduate to.

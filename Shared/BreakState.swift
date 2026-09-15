@@ -124,6 +124,17 @@ struct BreakState: Codable, Equatable {
     /// break was taken simply has no entry and reads as zero. There is no gap to
     /// align and nothing to write at midnight.
     var unblockedMinutes: [String: Int]
+    /// Days on which the starting point was changed, each with the baseline that
+    /// was in force before it.
+    ///
+    /// Changing band is a choice about today, not a rewrite of the week behind
+    /// it. Without this every past day is rated against whatever band is set
+    /// now, so stepping to an easier one lifts a whole week of Blaze to White
+    /// heat in a tap. Kept as a log of changes rather than a band per day, so
+    /// that nothing has to be written at midnight and a day nobody touched
+    /// needs no entry — it simply belongs to the band in force until the next
+    /// change after it.
+    var baselineChanges: [String: Int]
 
     init(
         dayKey: String = BreakState.dayKey(for: .now),
@@ -136,7 +147,8 @@ struct BreakState: Codable, Equatable {
         streakBrokenOn: Date? = nil,
         bestStreak: Int = 0,
         levelPenaltyRungs: Int = 0,
-        unblockedMinutes: [String: Int] = [:]
+        unblockedMinutes: [String: Int] = [:],
+        baselineChanges: [String: Int] = [:]
     ) {
         self.dayKey = dayKey
         self.breaksUsed = breaksUsed
@@ -149,6 +161,7 @@ struct BreakState: Codable, Equatable {
         self.bestStreak = bestStreak
         self.levelPenaltyRungs = levelPenaltyRungs
         self.unblockedMinutes = unblockedMinutes
+        self.baselineChanges = baselineChanges
     }
 
     /// Hand-written for the same reason as `BreakSettings`: the synthesized
@@ -170,6 +183,10 @@ struct BreakState: Codable, Equatable {
         bestStreak = max(0, try container.decodeIfPresent(Int.self, forKey: .bestStreak) ?? 0)
         levelPenaltyRungs = max(0, try container.decodeIfPresent(Int.self, forKey: .levelPenaltyRungs) ?? 0)
         unblockedMinutes = try container.decodeIfPresent([String: Int].self, forKey: .unblockedMinutes) ?? [:]
+        // Absent on everything written before a change of band kept its days.
+        // Empty is the right reading of that: every day is on the band now set,
+        // which is exactly how those builds rated them.
+        baselineChanges = try container.decodeIfPresent([String: Int].self, forKey: .baselineChanges) ?? [:]
     }
 
     // MARK: - Derived
@@ -356,8 +373,38 @@ struct BreakState: Codable, Equatable {
     func unblocked(on key: String) -> Int { unblockedMinutes[key] ?? 0 }
 
     mutating func pruneUsageHistory(now: Date = .now, calendar: Calendar = .current) {
-        let keep = Set(BreakState.dayKeys(endingAt: now, count: BreakRules.usageHistoryDays, calendar: calendar))
+        let kept = BreakState.dayKeys(endingAt: now, count: BreakRules.usageHistoryDays, calendar: calendar)
+        let keep = Set(kept)
         unblockedMinutes = unblockedMinutes.filter { keep.contains($0.key) }
+        // A change speaks for the days before it, so it can go once the oldest
+        // day still kept is no longer one of them.
+        if let oldest = kept.first {
+            baselineChanges = baselineChanges.filter { $0.key > oldest }
+        }
+    }
+
+    // MARK: - Which ladder each day was on
+
+    /// The baseline the day `key` is rated against: the one in force before the
+    /// first change made after it, or `current` if there has been none since.
+    ///
+    /// Day stamps sort as dates, so "after" is plain string order.
+    func baseline(on key: String, current: Int) -> Int {
+        baselineChanges
+            .filter { $0.key > key }
+            .min { $0.key < $1.key }?
+            .value ?? current
+    }
+
+    /// Called as the starting point moves off `previous`. Today follows the new
+    /// one; every day before it stays on the one it was earned on.
+    ///
+    /// Only the day's first change is written. A second one the same afternoon
+    /// is still a change to *today*, and what came before today has not moved.
+    mutating func recordBaselineChange(from previous: Int, now: Date = .now) {
+        let today = BreakState.dayKey(for: now)
+        guard baselineChanges[today] == nil else { return }
+        baselineChanges[today] = previous
     }
 
     /// Day stamps for the last `count` days, oldest first, ending with `now`.
@@ -388,15 +435,56 @@ struct BreakState: Codable, Equatable {
     /// `nil` only when no run is in progress, since then there are no days of it
     /// to average.
     func averageUnblockedMinutes(now: Date = .now, calendar: Calendar = .current) -> Double? {
-        let window = min(streakDays(now: now, calendar: calendar), BreakRules.usageWindowDays)
-        guard window > 0 else { return nil }
+        let keys = runWindowKeys(now: now, calendar: calendar)
+        guard !keys.isEmpty else { return nil }
+        return Double(keys.reduce(0) { $0 + unblocked(on: $1) }) / Double(keys.count)
+    }
 
-        let keys = (0..<window).compactMap { back in
+    /// The same average, with each day first moved onto the ladder in force
+    /// now — the figure the flame is actually judged on.
+    ///
+    /// Identical to `averageUnblockedMinutes` until the band is changed. After
+    /// that, a day earned on the old band still counts as the rung it earned
+    /// there, so the change moves the flame by one day's worth rather than the
+    /// whole week's.
+    func ratedAverageMinutes(
+        currentBaseline: Int,
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) -> Double? {
+        let keys = runWindowKeys(now: now, calendar: calendar)
+        guard !keys.isEmpty else { return nil }
+        let current = ScreenTimeBand.band(forBaselineMinutes: currentBaseline)
+        let total = keys.reduce(0.0) { sum, key in
+            let earnedOn = ScreenTimeBand.band(forBaselineMinutes: baseline(on: key, current: currentBaseline))
+            return sum + earnedOn.equivalentMinutes(Double(unblocked(on: key)), on: current)
+        }
+        return total / Double(keys.count)
+    }
+
+    /// Whether any day the flame is averaged over was earned on a different
+    /// ladder from the one in force now — the case where the minutes on show
+    /// and the level beside them are measured on two different ladders.
+    func runWindowSpansBaselineChange(
+        currentBaseline: Int,
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) -> Bool {
+        let current = ScreenTimeBand.band(forBaselineMinutes: currentBaseline)
+        return runWindowKeys(now: now, calendar: calendar).contains { key in
+            ScreenTimeBand.band(forBaselineMinutes: baseline(on: key, current: currentBaseline)) != current
+        }
+    }
+
+    /// The days of the current run the flame is averaged over, up to a week of
+    /// them, today included. Empty when no run is going.
+    private func runWindowKeys(now: Date, calendar: Calendar) -> [String] {
+        let window = min(streakDays(now: now, calendar: calendar), BreakRules.usageWindowDays)
+        guard window > 0 else { return [] }
+        return (0..<window).compactMap { back in
             calendar.date(byAdding: .day, value: -back, to: now)
                 .map { BreakState.dayKey(for: $0, calendar: calendar) }
         }
-        guard !keys.isEmpty else { return nil }
-        return Double(keys.reduce(0) { $0 + unblocked(on: $1) }) / Double(keys.count)
     }
 
     /// Whether a day is one this app can speak for: either something was spent

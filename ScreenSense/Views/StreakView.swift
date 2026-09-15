@@ -176,6 +176,15 @@ struct StreakView: View {
                     .font(.system(size: 11.5))
                     .foregroundColor(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
+                // Otherwise the minutes and the pill beside them can look as if
+                // they disagree with the ladder note underneath, which is read
+                // on the band set now.
+                if model.weekSpansBaselineChange {
+                    Text("Days before you changed where you started keep the level they earned then.")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             } else {
                 HStack(spacing: 10) {
                     Text("\(model.dailyUnblockedMinutes)")

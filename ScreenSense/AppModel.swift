@@ -63,7 +63,17 @@ final class AppModel: ObservableObject {
     /// the fallback. The Streak tab asks the first time this is false.
     var hasChosenBaseline: Bool { settings.baselineMinutes != nil }
 
+    /// Changes the ladder for today and every day after it, and leaves the days
+    /// already behind on the one they were earned on.
+    ///
+    /// The very first answer is the exception. Until then the ladder was a
+    /// placeholder rather than anything chosen, so the answer is allowed to
+    /// re-rate what came before it — that is the correction it exists to make.
     func chooseBaseline(_ band: ScreenTimeBand) {
+        let previous = settings.effectiveBaselineMinutes
+        if hasChosenBaseline, band != baselineBand {
+            state = BreakStore.mutate { $0.recordBaselineChange(from: previous) }
+        }
         updateSettings { $0.baselineMinutes = band.baselineMinutes }
     }
 
@@ -76,18 +86,23 @@ final class AppModel: ObservableObject {
     /// which is an enormous drop the first time and a formality by the second
     /// month. Reaching Blue flame is not the end of the ladder, it is the cue to
     /// pick up the next one.
-    /// Finished days at the top rung, counting back from yesterday and stopping
-    /// at the first day that was not one.
+    /// Finished days at the top rung of *this* ladder, counting back from
+    /// yesterday and stopping at the first day that was not one.
     ///
     /// Today is deliberately not counted. It is only partly spent, so every
     /// morning starts at zero minutes and reads as Blue flame before anything
     /// has been earned — including it would let the suggestion fire at breakfast
     /// on the strength of two days and an empty clock.
+    ///
+    /// A day earned on another band ends the count. Past days keep the level
+    /// they were given, so the Blue flames that prompted a step up are still
+    /// Blue flames afterwards — and counting them would offer the next band the
+    /// moment this one was picked, before a single day had been spent on it.
     var daysAtSummit: Int {
         let finished = dailyLevels(days: BreakRules.usageWindowDays + 1).dropLast()
         var days = 0
         for point in finished.reversed() {
-            guard point.level == .blueFlame else { break }
+            guard point.level == .blueFlame, point.band == baselineBand else { break }
             days += 1
         }
         return days
@@ -104,7 +119,7 @@ final class AppModel: ObservableObject {
         // Held, not touched. One day at the summit is a day; three is a habit,
         // and only a habit is evidence the ladder has stopped asking anything.
         guard daysAtSummit >= StreakLevel.daysAtSummitBeforeStepUp else { return nil }
-        guard let average = averageUnblockedMinutes else { return baselineBand.harder }
+        guard let average = ratedAverageMinutes else { return baselineBand.harder }
 
         var candidate = baselineBand.harder
         while let band = candidate {
@@ -131,13 +146,27 @@ final class AppModel: ObservableObject {
     /// Falls back to the budget until a day has finished — with nothing on the
     /// board, what you set for yourself is the only evidence there is.
     var earnedStreakLevel: StreakLevel {
-        guard let average = averageUnblockedMinutes else { return configuredStreakLevel }
+        guard let average = ratedAverageMinutes else { return configuredStreakLevel }
         return StreakLevel.level(forDailyMinutes: average, baseline: baselineMinutes)
     }
 
     /// Unblocked minutes a day across the finished days of this run; `nil` while
-    /// the run is still on its first day.
+    /// the run is still on its first day. What is shown as "min a day".
     var averageUnblockedMinutes: Double? { state.averageUnblockedMinutes(now: now) }
+
+    /// The same, with days earned on an earlier band moved onto this one — what
+    /// the level is judged on. Equal to the plain average whenever the band has
+    /// not changed inside the week.
+    var ratedAverageMinutes: Double? {
+        state.ratedAverageMinutes(currentBaseline: baselineMinutes, now: now)
+    }
+
+    /// True while the week being averaged still holds days from before the band
+    /// was changed, so the screens can say why the level and the minutes beside
+    /// it are not on the same ladder.
+    var weekSpansBaselineChange: Bool {
+        state.runWindowSpansBaselineChange(currentBaseline: baselineMinutes, now: now)
+    }
 
     /// Minutes already spent today, which the average deliberately excludes.
     var minutesUsedToday: Int { state.unblocked(on: BreakState.dayKey(for: now)) }
@@ -155,14 +184,17 @@ final class AppModel: ObservableObject {
     /// the flame sits a rung below what the minutes earn — it reads full, which
     /// is true: those minutes are comfortably inside that band.
     var levelCharge: Double? {
-        guard let average = averageUnblockedMinutes else { return nil }
+        guard let average = ratedAverageMinutes else { return nil }
         return streakLevel.chargeFraction(atDailyMinutes: average, baseline: baselineMinutes)
     }
 
     /// Minutes a day still available before the flame drops a rung; `nil` at the
     /// bottom of the ladder, or with no run going.
+    ///
+    /// On the rated average, so it stays true after a band change: every extra
+    /// minute from here on is spent on this ladder, where it counts one for one.
     var levelHeadroom: Double? {
-        guard let average = averageUnblockedMinutes else { return nil }
+        guard let average = ratedAverageMinutes else { return nil }
         return streakLevel.headroom(atDailyMinutes: average, baseline: baselineMinutes)
     }
 
@@ -179,15 +211,20 @@ final class AppModel: ObservableObject {
         return stride(from: days - 1, through: 0, by: -1).compactMap { back -> DayPoint? in
             guard let date = calendar.date(byAdding: .day, value: -back, to: now) else { return nil }
             let key = BreakState.dayKey(for: date, calendar: calendar)
+            // Each day on the ladder it was earned on, so changing band moves
+            // today's point and leaves the rest of the week where it was.
+            let earnedOn = state.baseline(on: key, current: baselineMinutes)
+            let band = ScreenTimeBand.band(forBaselineMinutes: earnedOn)
             guard state.hasRecord(for: date, now: now, calendar: calendar) else {
-                return DayPoint(date: date, key: key, minutes: nil, level: nil)
+                return DayPoint(date: date, key: key, minutes: nil, level: nil, band: band)
             }
             let minutes = state.unblocked(on: key)
             return DayPoint(
                 date: date,
                 key: key,
                 minutes: minutes,
-                level: StreakLevel.level(forDailyMinutes: Double(minutes), baseline: baselineMinutes)
+                level: StreakLevel.level(forDailyMinutes: Double(minutes), baseline: earnedOn),
+                band: band
             )
         }
     }
@@ -199,6 +236,8 @@ final class AppModel: ObservableObject {
         /// `nil` on a day the app was not watching.
         let minutes: Int?
         let level: StreakLevel?
+        /// The ladder `level` was read from.
+        let band: ScreenTimeBand
 
         var id: String { key }
     }
