@@ -7,6 +7,16 @@ Built on Apple's Screen Time APIs
 (FamilyControls / ManagedSettings / DeviceActivity), so the blocking is enforced by iOS
 itself rather than by a VPN profile or a DNS trick.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/breaks.png" width="200" alt="Breaks today: three breaks left, with the day's budget below">
+  <img src="docs/screenshots/break-running.png" width="200" alt="A break running, counting down to the second">
+  <img src="docs/screenshots/settings.png" width="200" alt="Settings: blocked apps, daily allowance band, breaks per day and break length">
+  <img src="docs/screenshots/streak.png" width="200" alt="Streak: 34 days at Blue flame, with the last 7 days charted by level">
+</p>
+<p align="center"><em>Breaks · a break running · settings · streak. Captured in the simulator, where the app shows a preview banner because nothing is actually blocked there.</em></p>
+
 ## Why this exists
 
 The App Store blockers tend to fail in one of two ways: they gate a basic block list
