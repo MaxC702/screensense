@@ -46,7 +46,8 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     /// sleep cue at 22:00 and as a non sequitur at 14:00, so before 21:00 the
     /// spent budget gets a lock instead — same message, no implication that the
     /// user should be in bed.
-    private static func symbol(coolingDown: Bool, hasBreaks: Bool, now: Date = .now) -> String {
+    private static func symbol(studying: Bool, coolingDown: Bool, hasBreaks: Bool, now: Date = .now) -> String {
+        if studying { return "book.fill" }
         if !hasBreaks {
             let hour = Calendar.current.component(.hour, from: now)
             return hour >= 21 ? "moon.zzz.fill" : "lock.fill"
@@ -65,9 +66,10 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // A break can be unavailable for two different reasons, and saying which
         // one matters: "come back in 12 minutes" is actionable, "no breaks left"
         // is not.
+        let studying = state.isStudying()
         let coolingDown = state.isCoolingDown()
         let hasBreaks = remaining > 0
-        let canStart = hasBreaks && !coolingDown
+        let canStart = hasBreaks && !coolingDown && !studying
 
         // The title carries the same distinction as the button. "Not right now"
         // is a *wait* — it only makes sense while the cooldown is running, when
@@ -84,7 +86,16 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // Spending the last break puts you in both states at once. Out-of-breaks
         // has to be tested first, or the cooldown branch wins and offers a "next
         // break" that will not exist until midnight.
-        if !hasBreaks {
+        // A session outranks everything else: whatever the budget says, no break
+        // can be taken until it ends. The end is given as a clock time rather
+        // than "in N minutes", because this screen is drawn once and then shown
+        // for as long as the system likes — a time stays true, a countdown does
+        // not.
+        if let end = state.studyEndsAt, studying {
+            title = "Studying"
+            subtitle = "Session ends at \(end.formatted(date: .omitted, time: .shortened)). Breaks are off until then."
+            primaryLabel = nil
+        } else if !hasBreaks {
             title = "Done for today"
             subtitle = "No breaks left."
             primaryLabel = nil
@@ -104,14 +115,14 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // cached screen; a stale count *with* one means this process read the
         // wrong thing.
         BreakLog.record(
-            "shield drawn: \(remaining) of \(settings.breaksPerDay) left, cooling down: \(coolingDown)",
+            "shield drawn: \(remaining) of \(settings.breaksPerDay) left, cooling down: \(coolingDown), studying: \(studying)",
             source: "shield"
         )
 
         return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
             backgroundColor: UIColor(red: 0.043, green: 0.035, blue: 0.071, alpha: 0.93),
-            icon: UIImage(systemName: Self.symbol(coolingDown: coolingDown, hasBreaks: hasBreaks)),
+            icon: UIImage(systemName: Self.symbol(studying: studying, coolingDown: coolingDown, hasBreaks: hasBreaks)),
             title: ShieldConfiguration.Label(
                 text: title,
                 color: .white

@@ -20,6 +20,8 @@ struct BreakSettings: Codable, Equatable {
     /// `ScreenTimeBand.unanswered`, whose rungs are within a minute of the fixed
     /// ones this replaced.
     var baselineMinutes: Int?
+    /// The study session length last picked, so the next one starts at it.
+    var studyMinutes: Int
 
     /// The figure to actually cut rungs from, answered or not.
     var effectiveBaselineMinutes: Int {
@@ -30,12 +32,14 @@ struct BreakSettings: Codable, Equatable {
         breaksPerDay: Int = BreakRules.defaultBreaksPerDay,
         breakMinutes: Int = BreakRules.defaultBreakMinutes,
         cooldownMinutes: Int = BreakRules.defaultCooldownMinutes,
-        baselineMinutes: Int? = nil
+        baselineMinutes: Int? = nil,
+        studyMinutes: Int = BreakRules.defaultStudyMinutes
     ) {
         self.breaksPerDay = BreakRules.clampBreaksPerDay(breaksPerDay)
         self.breakMinutes = BreakRules.clampMinutes(breakMinutes)
         self.cooldownMinutes = BreakRules.clampCooldownMinutes(cooldownMinutes)
         self.baselineMinutes = baselineMinutes.map(BreakRules.clampBaselineMinutes)
+        self.studyMinutes = BreakRules.validStudyMinutes(studyMinutes)
     }
 
     /// Decoded field-by-field with `decodeIfPresent` so that adding a setting in
@@ -66,5 +70,9 @@ struct BreakSettings: Codable, Equatable {
         baselineMinutes = try container
             .decodeIfPresent(Int.self, forKey: .baselineMinutes)
             .map(BreakRules.clampBaselineMinutes)
+        studyMinutes = BreakRules.validStudyMinutes(
+            try container.decodeIfPresent(Int.self, forKey: .studyMinutes)
+                ?? BreakRules.defaultStudyMinutes
+        )
     }
 }

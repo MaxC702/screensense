@@ -92,6 +92,10 @@ struct SettingsView: View {
                     )
                     .foregroundColor(Theme.accentSoft)
             }
+            // Taking apps off the list is turning blocking off one app at a
+            // time, so it is locked for the session along with the switch.
+            .disabled(model.isStudying)
+            .opacity(model.isStudying ? 0.45 : 1)
         }
     }
 
@@ -123,8 +127,12 @@ struct SettingsView: View {
                 }
             }
             .tint(Theme.accent)
-            .disabled(model.blockedCount == 0)
-            .opacity(model.blockedCount == 0 ? 0.45 : 1)
+            .disabled(model.blockedCount == 0 || model.isStudying)
+            .opacity(model.blockedCount == 0 || model.isStudying ? 0.45 : 1)
+
+            if model.isStudying, let end = model.state.studyEndsAt {
+                note("Locked until your study session ends at \(end.formatted(date: .omitted, time: .shortened)).")
+            }
 
             // Said at the switch, not on Home, because this is now the only place
             // it can be read — and the only place it can be acted on.

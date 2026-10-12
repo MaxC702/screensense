@@ -49,6 +49,16 @@ enum BreakRules {
     /// misfiring — see `BreakEngine.endBreak`.
     static let endTriggerTolerance: TimeInterval = 2
 
+    /// Study session lengths on offer. Fixed choices rather than a slider: these
+    /// are the lengths people already study in — a Pomodoro, a double, and a
+    /// lecture-sized block — and three buttons start one in a tap.
+    static let studyMinuteOptions = [25, 50, 90]
+    static let defaultStudyMinutes = 25
+
+    static func validStudyMinutes(_ minutes: Int) -> Int {
+        studyMinuteOptions.contains(minutes) ? minutes : defaultStudyMinutes
+    }
+
     static func clampMinutes(_ minutes: Int) -> Int {
         min(max(minutes, minMinutes), maxMinutes)
     }
@@ -90,6 +100,11 @@ struct BreakState: Codable, Equatable {
     /// `decodeIfPresent` for optionals, so payloads saved before cooldowns
     /// existed still decode instead of silently resetting the user's state.
     var cooldownUntil: Date?
+    /// Wall-clock end of the running study session; `nil` when none is running.
+    /// Breaks are off until then — that is the whole of what a session does.
+    var studyEndsAt: Date?
+    /// When the running session began, for the progress ring.
+    var studyStartedAt: Date?
     /// User-facing on/off switch. Blocking is never applied unless this is true.
     var blockingEnabled: Bool
     /// Instant at which the current unbroken run of blocking began; `nil` when
@@ -142,6 +157,8 @@ struct BreakState: Codable, Equatable {
         breakEndsAt: Date? = nil,
         breakStartedAt: Date? = nil,
         cooldownUntil: Date? = nil,
+        studyEndsAt: Date? = nil,
+        studyStartedAt: Date? = nil,
         blockingEnabled: Bool = false,
         streakStartedOn: Date? = nil,
         streakBrokenOn: Date? = nil,
@@ -155,6 +172,8 @@ struct BreakState: Codable, Equatable {
         self.breakEndsAt = breakEndsAt
         self.breakStartedAt = breakStartedAt
         self.cooldownUntil = cooldownUntil
+        self.studyEndsAt = studyEndsAt
+        self.studyStartedAt = studyStartedAt
         self.blockingEnabled = blockingEnabled
         self.streakStartedOn = streakStartedOn
         self.streakBrokenOn = streakBrokenOn
@@ -177,6 +196,8 @@ struct BreakState: Codable, Equatable {
         breakEndsAt = try container.decodeIfPresent(Date.self, forKey: .breakEndsAt)
         breakStartedAt = try container.decodeIfPresent(Date.self, forKey: .breakStartedAt)
         cooldownUntil = try container.decodeIfPresent(Date.self, forKey: .cooldownUntil)
+        studyEndsAt = try container.decodeIfPresent(Date.self, forKey: .studyEndsAt)
+        studyStartedAt = try container.decodeIfPresent(Date.self, forKey: .studyStartedAt)
         blockingEnabled = try container.decodeIfPresent(Bool.self, forKey: .blockingEnabled) ?? false
         streakStartedOn = try container.decodeIfPresent(Date.self, forKey: .streakStartedOn)
         streakBrokenOn = try container.decodeIfPresent(Date.self, forKey: .streakBrokenOn)
@@ -232,9 +253,28 @@ struct BreakState: Codable, Equatable {
         return max(0, cooldownUntil.timeIntervalSince(now))
     }
 
+    func isStudying(now: Date = .now) -> Bool {
+        guard let studyEndsAt else { return false }
+        return studyEndsAt > now
+    }
+
+    func remainingStudySeconds(now: Date = .now) -> TimeInterval {
+        guard let studyEndsAt else { return 0 }
+        return max(0, studyEndsAt.timeIntervalSince(now))
+    }
+
+    /// The study session's counterpart to `endTriggerIsEarly`.
+    func studyEndTriggerIsEarly(now: Date = .now) -> Bool {
+        guard let studyEndsAt else { return false }
+        return now < studyEndsAt - BreakRules.endTriggerTolerance
+    }
+
     /// `mm:ss` for live countdowns.
     static func countdown(from seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded(.up))
+        if total >= 3600 {
+            return String(format: "%d:%02d:%02d", total / 3600, total / 60 % 60, total % 60)
+        }
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 

@@ -245,7 +245,28 @@ final class AppModel: ObservableObject {
     var minutesToNextLevel: Int? { StreakLevel.minutesToNextLevel(from: settings) }
     var isCoolingDown: Bool { state.isCoolingDown(now: now) }
     var breaksRemaining: Int { state.breaksRemaining(limit: settings.breaksPerDay) }
-    var canStartBreak: Bool { breaksRemaining > 0 && !isCoolingDown && state.blockingEnabled }
+    var canStartBreak: Bool { breaksRemaining > 0 && !isCoolingDown && !isStudying && state.blockingEnabled }
+
+    var isStudying: Bool { state.isStudying(now: now) }
+
+    /// A session needs the shield up to mean anything, and can't begin inside a
+    /// break — the apps are open, so it would start by promising something
+    /// that isn't true.
+    var canStartStudy: Bool {
+        state.blockingEnabled && blockedCount > 0 && !isOnBreak && !isStudying
+    }
+
+    var studyCountdownText: String {
+        BreakState.countdown(from: state.remainingStudySeconds(now: now))
+    }
+
+    /// How much of the session is left, 0...1, for the ring.
+    var studyProgress: Double {
+        guard let start = state.studyStartedAt, let end = state.studyEndsAt else { return 0 }
+        let total = end.timeIntervalSince(start)
+        guard total > 0 else { return 0 }
+        return min(1, max(0, state.remainingStudySeconds(now: now) / total))
+    }
 
     var countdownText: String {
         BreakState.countdown(from: state.remainingBreakSeconds(now: now))
@@ -294,7 +315,9 @@ final class AppModel: ObservableObject {
     /// Runs while either countdown is live — the break, or the cooldown that
     /// follows it.
     private func updateTicker() {
-        let needsTicking = state.isOnBreak(now: .now) || state.isCoolingDown(now: .now)
+        let needsTicking = state.isOnBreak(now: .now)
+            || state.isCoolingDown(now: .now)
+            || state.isStudying(now: .now)
         guard needsTicking else {
             ticker = nil
             return
@@ -315,8 +338,14 @@ final class AppModel: ObservableObject {
                     self.refresh()
                     return
                 }
+                if self.state.studyEndsAt != nil, !self.state.isStudying(now: date) {
+                    self.refresh()
+                    return
+                }
 
-                if !self.state.isOnBreak(now: date), !self.state.isCoolingDown(now: date) {
+                if !self.state.isOnBreak(now: date),
+                   !self.state.isCoolingDown(now: date),
+                   !self.state.isStudying(now: date) {
                     self.ticker = nil
                 }
             }
@@ -335,6 +364,12 @@ final class AppModel: ObservableObject {
     }
 
     func setBlocking(_ enabled: Bool) {
+        // Settings disables the switch for the session; this is the same rule
+        // for any other path that gets here.
+        guard enabled || !isStudying else {
+            errorMessage = "Blocking stays on until your study session ends."
+            return
+        }
         guard !(enabled && selection.isEmpty && !PreviewEnvironment.isSimulator) else {
             errorMessage = BreakEngine.BreakError.noAppsSelected.errorDescription
             return
@@ -359,6 +394,24 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func startStudy(minutes: Int) {
+        updateSettings { $0.studyMinutes = minutes }
+        do {
+            state = try BreakEngine.startStudy(minutes: minutes)
+            now = .now
+            updateTicker()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// There is always a way out of a session, but it costs the streak — the
+    /// same price as switching blocking off, which a session otherwise forbids.
+    func endStudyEarly() {
+        BreakEngine.endStudy(source: "app/user", allowEarly: true, forfeitStreak: streakDays > 0)
+        refresh()
+    }
+
     func startBreak() {
         do {
             state = try BreakEngine.startBreak()
@@ -380,6 +433,7 @@ final class AppModel: ObservableObject {
         updated.breaksPerDay = BreakRules.clampBreaksPerDay(updated.breaksPerDay)
         updated.breakMinutes = BreakRules.clampMinutes(updated.breakMinutes)
         updated.baselineMinutes = updated.baselineMinutes.map(BreakRules.clampBaselineMinutes)
+        updated.studyMinutes = BreakRules.validStudyMinutes(updated.studyMinutes)
         guard updated != settings else { return }
         settings = updated
         BreakStore.saveSettings(updated)

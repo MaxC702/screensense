@@ -16,6 +16,8 @@ enum BreakEngine {
         case noBreaksLeft(limit: Int)
         case alreadyOnBreak
         case coolingDown(secondsRemaining: TimeInterval)
+        case studying(secondsRemaining: TimeInterval)
+        case blockingOff
         case schedulingFailed(String)
 
         var errorDescription: String? {
@@ -29,6 +31,11 @@ enum BreakEngine {
             case .coolingDown(let seconds):
                 let minutes = BreakState.minutesRoundedUp(from: seconds)
                 return "Cooling down. You can start another break in \(minutes) minute\(minutes == 1 ? "" : "s")."
+            case .studying(let seconds):
+                let minutes = BreakState.minutesRoundedUp(from: seconds)
+                return "You're in a study session. Breaks are back in \(minutes) minute\(minutes == 1 ? "" : "s")."
+            case .blockingOff:
+                return "Turn blocking on in Settings first — a study session keeps your blocked apps blocked."
             case .schedulingFailed(let reason):
                 return "Couldn't schedule the break: \(reason)"
             }
@@ -53,6 +60,9 @@ enum BreakEngine {
         let settings = BreakStore.loadSettings()
 
         guard !state.isOnBreak(now: now) else { throw BreakError.alreadyOnBreak }
+        guard !state.isStudying(now: now) else {
+            throw BreakError.studying(secondsRemaining: state.remainingStudySeconds(now: now))
+        }
         guard !state.isCoolingDown(now: now) else {
             throw BreakError.coolingDown(secondsRemaining: state.remainingCooldownSeconds(now: now))
         }
@@ -189,6 +199,106 @@ enum BreakEngine {
         DeviceActivityCenter().stopMonitoring([.breakWindow, .breakEnd])
     }
 
+    // MARK: - Study
+
+    /// Starts a study session: breaks are off until it ends.
+    ///
+    /// The shield is already up — blocking has to be on to get here — so nothing
+    /// is unblocked or re-blocked. What changes is what the block screen says,
+    /// and the shield is moved between stores so iOS draws it again.
+    @discardableResult
+    static func startStudy(minutes: Int, now: Date = .now) throws -> BreakState {
+        let state = BreakStore.loadState(now: now)
+        guard state.blockingEnabled else { throw BreakError.blockingOff }
+        guard !state.isOnBreak(now: now) else { throw BreakError.alreadyOnBreak }
+        guard !state.isStudying(now: now) else {
+            throw BreakError.studying(secondsRemaining: state.remainingStudySeconds(now: now))
+        }
+        guard !BreakStore.loadSelection().isEmpty || PreviewEnvironment.isSimulator else {
+            throw BreakError.noAppsSelected
+        }
+
+        let minutes = BreakRules.validStudyMinutes(minutes)
+        let end = now.addingTimeInterval(TimeInterval(minutes * 60))
+        try armStudyEnd(at: end)
+
+        let saved = BreakStore.mutate(now: now) { state in
+            state.studyStartedAt = now
+            state.studyEndsAt = end
+        }
+        ShieldController.applyShield(source: "app/study", log: false, redraw: true)
+        BreakLog.record("study session started, \(minutes)m, ends \(Self.clock(end))", source: "app")
+        return saved
+    }
+
+    /// Idempotent for the same reason `endBreak` is: the monitor, the app's
+    /// reconcile and the user can all report the same session over.
+    ///
+    /// `forfeitStreak` is the price of quitting early, charged in the same write
+    /// that ends the session so the two can't come apart.
+    static func endStudy(
+        now: Date = .now,
+        source: String = "app",
+        allowEarly: Bool = false,
+        forfeitStreak: Bool = false
+    ) {
+        let existing = BreakStore.loadState(now: now)
+        guard existing.studyEndsAt != nil else { return }
+        if !allowEarly, existing.studyEndTriggerIsEarly(now: now) {
+            BreakLog.record("endStudy (\(source)): fired early — ignored", source: source)
+            return
+        }
+
+        BreakStore.mutate(now: now) { state in
+            // Lost exactly as switching blocking off loses it — the count is
+            // held at zero for the rest of the day and a long run takes a rung
+            // with it — except that blocking stays on, so the next run is
+            // already under way and reads 1 tomorrow.
+            if forfeitStreak, state.isStudying(now: now), state.blockingEnabled {
+                state.endStreak(now: now)
+                state.beginStreakIfNeeded(now: now)
+                BreakLog.record("study session ended early — streak lost", source: source)
+            }
+            state.studyStartedAt = nil
+            state.studyEndsAt = nil
+        }
+        // Back to the ordinary block screen, with a break on offer again.
+        if existing.blockingEnabled {
+            ShieldController.applyShield(source: source, log: false, redraw: true)
+        }
+        BreakLog.record("study session over", source: source)
+
+        if !PreviewEnvironment.isSimulator {
+            DeviceActivityCenter().stopMonitoring([.studyEnd])
+        }
+    }
+
+    /// An interval that begins when the session does, so the monitor extension
+    /// can hand the block screen back its break button even if ScreenSense is
+    /// never reopened. Same shape as the break's resume interval.
+    private static func armStudyEnd(at end: Date) throws {
+        guard !PreviewEnvironment.isSimulator else { return }
+
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([.studyEnd])
+
+        let calendar = Calendar.current
+        let components: (Date) -> DateComponents = {
+            calendar.dateComponents([.hour, .minute, .second], from: $0)
+        }
+        let schedule = DeviceActivitySchedule(
+            intervalStart: components(end),
+            intervalEnd: components(end.addingTimeInterval(TimeInterval(BreakRules.minimumScheduleMinutes * 60))),
+            repeats: false
+        )
+        do {
+            try center.startMonitoring(.studyEnd, during: schedule)
+        } catch {
+            BreakLog.record("study end interval FAILED: \(error.localizedDescription)", source: "app")
+            throw BreakError.schedulingFailed(error.localizedDescription)
+        }
+    }
+
     /// `HH:mm:ss`, which is the only part of a timestamp that matters when you are
     /// checking whether something fired on time.
     static func clock(_ date: Date) -> String {
@@ -222,6 +332,10 @@ enum BreakEngine {
         // too, so the stored state stops claiming a debt that no longer exists.
         if state.levelPenaltyRungs > 0, state.activeLevelPenalty(now: now) == 0 {
             BreakStore.mutate(now: now) { $0.levelPenaltyRungs = 0 }
+        }
+
+        if state.studyEndsAt != nil, !state.isStudying(now: now) {
+            endStudy(source: "app/reconcile")
         }
 
         if state.breakEndsAt != nil, !state.isOnBreak(now: now) {

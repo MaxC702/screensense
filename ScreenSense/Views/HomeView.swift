@@ -8,6 +8,8 @@ struct HomeView: View {
     /// screen the tab bar already has.
     let onShowStreak: () -> Void
 
+    @State private var confirmingEndStudy = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -16,9 +18,20 @@ struct HomeView: View {
                     if PreviewEnvironment.isSimulator { simulatorBanner }
                     if needsSetup { setupCard }
 
-                    SectionLabel("Breaks")
-                    breaksHero
-                    if !model.isOnBreak { budgetRows }
+                    // A running session takes the breaks' place rather than
+                    // sitting above them: there is nothing to do with a break
+                    // until it ends, and a card offering one would be a lie.
+                    if model.isStudying {
+                        SectionLabel("Study")
+                        studyHero
+                    } else {
+                        SectionLabel("Breaks")
+                        breaksHero
+                        if !model.isOnBreak { budgetRows }
+
+                        SectionLabel("Study")
+                        studyCard
+                    }
 
                     footnote
                     buildStamp
@@ -329,6 +342,146 @@ struct HomeView: View {
             return "Next break in \(model.cooldownText)"
         }
         return "Start \(model.settings.breakMinutes)-minute break"
+    }
+
+    // MARK: - Study
+
+    private var studyCard: some View {
+        Card {
+            HStack(spacing: 10) {
+                IconTile(symbol: "book.fill")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Study session").font(Theme.display(15, .medium))
+                    Text(studySubtitle)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            HStack(spacing: 8) {
+                ForEach(BreakRules.studyMinuteOptions, id: \.self) { minutes in
+                    let selected = minutes == model.settings.studyMinutes
+                    Button {
+                        model.updateSettings { $0.studyMinutes = minutes }
+                    } label: {
+                        Text("\(minutes) min")
+                            .font(.system(size: 13, weight: .semibold))
+                            .monospacedDigit()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(
+                                selected ? Theme.accent.opacity(0.28) : Color.white.opacity(0.06),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .foregroundColor(selected ? .white : Theme.muted)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+
+            Button {
+                model.startStudy(minutes: model.settings.studyMinutes)
+            } label: {
+                Text("Start \(model.settings.studyMinutes)-minute session")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        model.canStartStudy ? AnyShapeStyle(Theme.gradient) : AnyShapeStyle(Color.white.opacity(0.07)),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+                    .foregroundColor(model.canStartStudy ? .white : Theme.faint)
+            }
+            .disabled(!model.canStartStudy)
+        }
+    }
+
+    /// Says what a session does before it is started — that it turns breaks off
+    /// is the whole point, and the one thing nobody should discover afterwards.
+    private var studySubtitle: String {
+        if !model.state.blockingEnabled || model.blockedCount == 0 {
+            return "Turn blocking on to start one"
+        }
+        if model.isOnBreak {
+            return "Starts once your break is over"
+        }
+        return "Breaks are off until it ends"
+    }
+
+    private var studyHero: some View {
+        VStack(spacing: 14) {
+            HStack {
+                Text("Studying")
+                    .font(Theme.display(15, .medium))
+                Spacer()
+                if let end = model.state.studyEndsAt {
+                    Pill(text: "Ends \(end.formatted(date: .omitted, time: .shortened))")
+                }
+            }
+
+            BreakRing(fraction: model.studyProgress, onGradient: true) {
+                VStack(spacing: 5) {
+                    Text(model.studyCountdownText)
+                        .font(Theme.display(model.studyCountdownText.count > 5 ? 26 : 31, .ultraLight))
+                        .monospacedDigit()
+                    Text("BREAKS ARE OFF")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .kerning(0.4)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+
+            // Always a way out, never a free one: it asks first, and says what it
+            // costs before the tap that pays it.
+            Button {
+                confirmingEndStudy = true
+            } label: {
+                Text("End session early")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        Color.white.opacity(0.16),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            .confirmationDialog(
+                endStudyTitle,
+                isPresented: $confirmingEndStudy,
+                titleVisibility: .visible
+            ) {
+                Button(model.streakDays > 0 ? "End session and lose streak" : "End session",
+                       role: .destructive) { model.endStudyEarly() }
+                Button("Keep studying", role: .cancel) {}
+            } message: {
+                Text(endStudyMessage)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Theme.gradient)
+                .shadow(color: Theme.accent.opacity(0.32), radius: 17, y: 8)
+        )
+    }
+
+    private var endStudyTitle: String {
+        let days = model.streakDays
+        guard days > 0 else { return "End this session early?" }
+        return "End early and lose your \(days)-day streak?"
+    }
+
+    private var endStudyMessage: String {
+        guard model.streakDays > 0 else { return "Your breaks come back straight away." }
+        var message = "Quitting a session costs the same as switching blocking off: the streak goes back to zero today"
+        if model.streakDays >= StreakLevel.minimumRunToPenalise, model.streakLevel.previous != nil {
+            message += " and the flame drops a level"
+        }
+        return message + ". Blocking stays on."
     }
 
     // MARK: - Budget rows

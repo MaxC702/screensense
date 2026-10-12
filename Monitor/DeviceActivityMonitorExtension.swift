@@ -32,6 +32,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     /// every break zero-length.
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
+        if activity == .studyEnd {
+            BreakEngine.endStudy(source: "monitor/study")
+            return
+        }
         guard activity == .breakEnd else { return }
         BreakLog.record("resume interval started — break is over", source: "monitor")
         BreakEngine.endBreak(source: "monitor/resume")
