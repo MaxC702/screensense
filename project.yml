@@ -1,7 +1,7 @@
 name: ScreenSense
 
 options:
-  bundleIdPrefix: com.screenblock
+  bundleIdPrefix: com.screensense
   deploymentTarget:
     iOS: "16.0"
   createIntermediateGroups: true

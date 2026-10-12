@@ -1,4 +1,4 @@
-// ScreenBlock — the only file you need to edit to build this on your own device.
+// ScreenSense — the only file you need to edit to build this on your own device.
 //
 // Everything downstream (four bundle IDs, four entitlements files, and the
 // App Group identifier baked into each Info.plist) is derived from these two

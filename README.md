@@ -98,16 +98,16 @@ Breaks reset at your local midnight. There's no scheduled job — state carries 
 ## Setup
 
 ```bash
-git clone https://github.com/sleepyowlll/screenblock.git
-cd screenblock
+git clone https://github.com/MaxC702/screensense.git
+cd screensense
 ```
 
 1. Open `Config/Signing.xcconfig` and set two values:
    - `DEVELOPMENT_TEAM` — your 10-character Team ID (Xcode › Settings › Accounts, or
      developer.apple.com/account › Membership Details).
    - `BUNDLE_ID_PREFIX` — **change this**. Bundle IDs are globally unique across the App
-     Store, so `com.screenblock.app` will not be available to you. Use something like
-     `com.yourname.screenblock`. The App Group follows automatically.
+     Store, so `com.chernobayev.screenblock` will not be available to you. Use something like
+     `com.yourname.screensense`. The App Group follows automatically.
 
    This is the **only** file you need to edit. All four bundle IDs, all four entitlements
    files, and the App Group identifier in every Info.plist derive from those two values.
