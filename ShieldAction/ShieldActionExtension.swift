@@ -34,6 +34,15 @@ class ShieldActionExtension: ShieldActionDelegate {
         completionHandler(respond(to: action))
     }
 
+    // MARK: - Lifting
+
+    /// Safe to call when the shield is already down.
+    private static func liftShieldForBreak() {
+        guard BreakStore.loadState().isOnBreak(), ShieldController.isShielding else { return }
+        ShieldController.clearShield()
+        BreakLog.record("shield lifted for break", source: "shieldaction")
+    }
+
     // MARK: - Decision
 
     private func respond(to action: ShieldAction) -> ShieldActionResponse {
@@ -42,12 +51,29 @@ class ShieldActionExtension: ShieldActionDelegate {
             do {
                 // Length and allowance are read from BreakSettings inside the
                 // engine, so this stays correct when the user changes them.
-                try BreakEngine.startBreak()
-                // `.none` dismisses the shield and lets the user through. The
-                // tokens were already cleared by `startBreak`, so this is not a
-                // one-time bypass — the app is genuinely unblocked until the
-                // monitor extension puts the shield back.
-                return .none
+                try BreakEngine.startBreak(liftShield: false)
+                // iOS 27 keeps the last screen it drew for an app and shows it
+                // again when the shield returns, so lifting the shield straight
+                // away left this screen — "Take a break" — waiting at the end of
+                // the break, and only a refused tap brought up the cooldown.
+                //
+                // So the shield stays up for a moment and `.defer` makes iOS
+                // redraw it. `ShieldConfig` sees the break and draws the screen
+                // as it will look when the break ends; then the shield is lifted
+                // here, which lets the user through. Here and not in
+                // `ShieldConfig`, whose sandbox lets it neither write to the App
+                // Group nor post a notification saying it has drawn.
+                //
+                // The redraw lands 14–16 ms after this returns, and must land
+                // before the lift: lifting first left iOS keeping its own
+                // "Restricted" placeholder for the end of the break. Whatever is
+                // on the shield as it lifts shows for a moment, so the wait is
+                // as short as that allows. `reconcile` lifts the shield if this
+                // never runs.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+                    Self.liftShieldForBreak()
+                }
+                return .defer
             } catch {
                 // Out of breaks, or scheduling failed. `.defer` leaves the block
                 // screen up rather than silently letting the user in.

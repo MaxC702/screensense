@@ -54,8 +54,11 @@ enum BreakEngine {
     /// The shield is only cleared *after* monitoring is successfully armed. If
     /// arming failed and we had cleared first, the apps would be unblocked with
     /// nothing scheduled to ever block them again.
+    ///
+    /// `liftShield: false` leaves the shield up for the caller to lift — the
+    /// block screen does, so iOS can redraw it first. See `ShieldActionExtension`.
     @discardableResult
-    static func startBreak(now: Date = .now) throws -> BreakState {
+    static func startBreak(now: Date = .now, liftShield: Bool = true) throws -> BreakState {
         var state = BreakStore.loadState(now: now)
         let settings = BreakStore.loadSettings()
 
@@ -83,7 +86,7 @@ enum BreakEngine {
         state.breakEndsAt = now.addingTimeInterval(TimeInterval(duration * 60))
         BreakStore.save(state)
 
-        ShieldController.clearShield()
+        if liftShield { ShieldController.clearShield() }
         BreakLog.record(
             "break started, \(duration)m, ends \(Self.clock(state.breakEndsAt ?? now))",
             source: "app"
@@ -345,6 +348,11 @@ enum BreakEngine {
             endBreak(source: "app/reconcile")
         } else if state.breakEndsAt == nil {
             ShieldController.applyShield(source: "app/reconcile", log: false)
+        } else {
+            // On a break. One started from the block screen has its shield lifted
+            // only after iOS has redrawn that screen; if the lift never ran, the
+            // shield is still up and this is where it comes down.
+            ShieldController.clearShield()
         }
     }
 

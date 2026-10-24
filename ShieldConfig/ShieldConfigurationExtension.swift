@@ -67,7 +67,13 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // one matters: "come back in 12 minutes" is actionable, "no breaks left"
         // is not.
         let studying = state.isStudying()
-        let coolingDown = state.isCoolingDown()
+        // The shield is down during a break, so being asked to draw during one
+        // means it is the redraw `ShieldAction` asks for as a break starts from
+        // this screen. iOS keeps that drawing and shows it again when the break
+        // ends, so it is drawn as the break will look then: cooling down, with
+        // the whole cooldown still to wait.
+        let onBreak = state.isOnBreak()
+        let coolingDown = onBreak || state.isCoolingDown()
         let hasBreaks = remaining > 0
         let canStart = hasBreaks && !coolingDown && !studying
 
@@ -109,10 +115,18 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             subtitle = "No breaks left."
             primaryLabel = nil
         } else if coolingDown {
-            let wait = BreakState.minutesRoundedUp(from: state.remainingCooldownSeconds())
+            // A time rather than a wait: this screen is drawn once and cannot
+            // tick, so "in 5 minutes" is only true when drawn, while the time
+            // stays true however long the screen is up.
+            let next = onBreak
+                ? state.breakEndsAt.map {
+                    $0.addingTimeInterval(TimeInterval(BreakRules.clampCooldownMinutes(settings.cooldownMinutes) * 60))
+                }
+                : state.cooldownUntil
             title = "Not right now"
             subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
-            primaryLabel = "Next break in \(wait) minute\(wait == 1 ? "" : "s")"
+            primaryLabel = next.map { "Next break at \($0.formatted(date: .omitted, time: .shortened))" }
+                ?? "Next break soon"
         } else {
             title = "You blocked this"
             subtitle = "\(remaining) of \(settings.breaksPerDay) breaks left today."
@@ -123,8 +137,12 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // count with no line here means the system never asked and is showing a
         // cached screen; a stale count *with* one means this process read the
         // wrong thing.
+        //
+        // Only the system log gets this line. This extension's sandbox lets it
+        // read the App Group but not write to it, so it never reaches the file
+        // Diagnostics reads — `log collect` from a Mac is the way to see it.
         BreakLog.record(
-            "shield drawn: \(remaining) of \(settings.breaksPerDay) left, cooling down: \(coolingDown), studying: \(studying)",
+            "shield drawn: \(remaining) of \(settings.breaksPerDay) left, cooling down: \(coolingDown), studying: \(studying), on break: \(onBreak)",
             source: "shield"
         )
 

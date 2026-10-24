@@ -37,8 +37,8 @@ extension DeviceActivityEvent.Name {
 /// front of an app. The write is instantaneous and persists across reboots until
 /// something clears it, so this is also the thing that must be cleared carefully.
 enum ShieldController {
-    /// Two stores, used in turn: each time the shield goes back up after being
-    /// cleared, it goes into the store that did not hold it last time.
+    /// Two stores. The shield stays in one of them until something that changes
+    /// what the block screen says needs it redrawn, when it moves to the other.
     ///
     /// iOS 27 keeps the block screen it last drew for an app and shows it again
     /// when the shield comes back while that app is not on screen — without
@@ -76,18 +76,17 @@ enum ShieldController {
             return
         }
 
-        // A shield that is already up is re-asserted where it is — that is the
-        // steady state on every foreground, and moving it would make iOS redraw
-        // for nothing. Only a shield going back up after a clear, which is what
-        // the end of a break is, swaps to the other store.
+        // A break started from the block screen has that screen redrawn as it
+        // will look when the break ends (see `ShieldActionExtension`), with the
+        // shield in the store it was in. So a shield going back up after a clear
+        // goes back into that same store. Swapping here instead brought back a
+        // screen from the break before: the old count and the old wait.
+        //
+        // Only `redraw` moves to the other store, for a shield that is already up.
         let active = stores.firstIndex(where: \.isShielding)
-        let index: Int
-        if let active, !redraw {
-            index = active
-        } else {
-            index = 1 - (active ?? lastStoreIndex)
-            lastStoreIndex = index
-        }
+        let current = active ?? lastStoreIndex
+        let index = redraw ? 1 - current : current
+        if index != lastStoreIndex { lastStoreIndex = index }
         let store = stores[index]
 
         // Passing an empty set is not the same as passing nil: nil means "no
@@ -124,6 +123,8 @@ enum ShieldController {
     static func clearShield() {
         stores.forEach { $0.clearShieldSettings() }
     }
+
+    static var isShielding: Bool { stores.contains(where: \.isShielding) }
 
     /// Which store the shield last went into. Kept in its own file rather than
     /// in `BreakState`, because the processes that apply the shield would
