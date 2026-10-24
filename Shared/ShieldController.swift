@@ -45,8 +45,13 @@ enum ShieldController {
     /// asking `ShieldConfig` for a new one. Clearing and re-applying the same
     /// store is not enough to make it ask, so a break that ended in the
     /// background left the pre-break screen up: the old break count, and a
-    /// "Take a break" button in the middle of the cooldown. A shield arriving
-    /// from a different store is a new shield as far as the system is concerned.
+    /// "Take a break" button in the middle of the cooldown.
+    ///
+    /// Moving the shield to a different store was meant to make it a new shield
+    /// as far as the system is concerned. It is not enough on its own: a study
+    /// session that ended with Instagram in the background still came back
+    /// showing "Studying", and only a tap on the block screen's button (which
+    /// is why every screen has one) or relaunching the app made iOS ask again.
     private static let stores = [
         ManagedSettingsStore(named: .screenBlock),
         ManagedSettingsStore(named: .screenBlockAlternate),

@@ -91,10 +91,19 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // than "in N minutes", because this screen is drawn once and then shown
         // for as long as the system likes — a time stays true, a countdown does
         // not.
+        //
+        // It still gets a button, because iOS does not redraw this screen when
+        // the session ends: an app left in the background comes back to the
+        // "Studying" it was showing, well past the end time. A tap is the one
+        // thing that reliably makes the system ask again. Before the end it is
+        // refused and the screen is redrawn unchanged; after it, the tap starts
+        // a break — which is what the label promises — or, with none left,
+        // redraws as "Done for today".
         if let end = state.studyEndsAt, studying {
+            let time = end.formatted(date: .omitted, time: .shortened)
             title = "Studying"
-            subtitle = "Session ends at \(end.formatted(date: .omitted, time: .shortened)). Breaks are off until then."
-            primaryLabel = nil
+            subtitle = "Session ends at \(time). Breaks are off until then."
+            primaryLabel = hasBreaks ? "Next break after \(time)" : "Session ends at \(time)"
         } else if !hasBreaks {
             title = "Done for today"
             subtitle = "No breaks left."
