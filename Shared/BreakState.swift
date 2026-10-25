@@ -49,14 +49,36 @@ enum BreakRules {
     /// misfiring — see `BreakEngine.endBreak`.
     static let endTriggerTolerance: TimeInterval = 2
 
-    /// Study session lengths on offer. Fixed choices rather than a slider: these
-    /// are the lengths people already study in — a Pomodoro, a double, and a
-    /// lecture-sized block — and three buttons start one in a tap.
-    static let studyMinuteOptions = [25, 50, 90]
+    /// The study lengths on offer until the user picks their own: the lengths
+    /// people already study in — a Pomodoro, a double, and a lecture-sized
+    /// block — so three buttons start one in a tap.
+    static let defaultStudyPresets = [25, 50, 90]
+    /// Enough for a short, a medium and a long; more and the row stops fitting
+    /// beside the Custom button.
+    static let maxStudyPresets = 3
     static let defaultStudyMinutes = 25
+    /// Lengths go in 5-minute steps, from 5 minutes to 4 hours.
+    static let studyMinuteStep = 5
+    static let studyMinuteRange = 5...240
 
     static func validStudyMinutes(_ minutes: Int) -> Int {
-        studyMinuteOptions.contains(minutes) ? minutes : defaultStudyMinutes
+        let stepped = Int((Double(minutes) / Double(studyMinuteStep)).rounded()) * studyMinuteStep
+        return min(max(stepped, studyMinuteRange.lowerBound), studyMinuteRange.upperBound)
+    }
+
+    /// Valid lengths, no repeats, shortest first, at most `maxStudyPresets`.
+    /// Never empty: removing the last one is refused in the UI, and a payload
+    /// that somehow has none gets the defaults back rather than an empty row.
+    static func validStudyPresets(_ presets: [Int]) -> [Int] {
+        let cleaned = Array(Set(presets.map(validStudyMinutes))).sorted()
+        return cleaned.isEmpty ? defaultStudyPresets : Array(cleaned.prefix(maxStudyPresets))
+    }
+
+    /// "25 min", "2 h", "1 h 15 min".
+    static func studyLengthText(_ minutes: Int) -> String {
+        let hours = minutes / 60, rest = minutes % 60
+        if hours == 0 { return "\(rest) min" }
+        return rest == 0 ? "\(hours) h" : "\(hours) h \(rest) min"
     }
 
     static func clampMinutes(_ minutes: Int) -> Int {

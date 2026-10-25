@@ -9,6 +9,7 @@ struct HomeView: View {
     let onShowStreak: () -> Void
 
     @State private var confirmingEndStudy = false
+    @State private var isPickingCustomStudy = false
 
     var body: some View {
         NavigationStack {
@@ -360,31 +361,32 @@ struct HomeView: View {
             }
 
             HStack(spacing: 8) {
-                ForEach(BreakRules.studyMinuteOptions, id: \.self) { minutes in
-                    let selected = minutes == model.settings.studyMinutes
-                    Button {
+                ForEach(model.settings.studyPresets, id: \.self) { minutes in
+                    studyChip(
+                        BreakRules.studyLengthText(minutes),
+                        selected: minutes == model.settings.studyMinutes
+                    ) {
                         model.updateSettings { $0.studyMinutes = minutes }
-                    } label: {
-                        Text("\(minutes) min")
-                            .font(.system(size: 13, weight: .semibold))
-                            .monospacedDigit()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(
-                                selected ? Theme.accent.opacity(0.28) : Color.white.opacity(0.06),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                            .foregroundColor(selected ? .white : Theme.muted)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(selected ? .isSelected : [])
                 }
+                // Shows the custom length once one is picked, so the button
+                // below is never starting a length nothing on screen names.
+                let custom = !model.settings.studyPresets.contains(model.settings.studyMinutes)
+                studyChip(
+                    custom ? BreakRules.studyLengthText(model.settings.studyMinutes) : "Custom",
+                    selected: custom
+                ) {
+                    isPickingCustomStudy = true
+                }
+            }
+            .sheet(isPresented: $isPickingCustomStudy) {
+                StudyTimerSheet(startingAt: model.settings.studyMinutes).environmentObject(model)
             }
 
             Button {
                 model.startStudy(minutes: model.settings.studyMinutes)
             } label: {
-                Text("Start \(model.settings.studyMinutes)-minute session")
+                Text("Start \(BreakRules.studyLengthText(model.settings.studyMinutes)) session")
                     .font(.system(size: 13, weight: .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -396,6 +398,25 @@ struct HomeView: View {
             }
             .disabled(!model.canStartStudy)
         }
+    }
+
+    private func studyChip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(
+                    selected ? Theme.accent.opacity(0.28) : Color.white.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
+                .foregroundColor(selected ? .white : Theme.muted)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     /// Says what a session does before it is started — that it turns breaks off

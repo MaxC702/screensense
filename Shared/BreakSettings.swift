@@ -21,7 +21,10 @@ struct BreakSettings: Codable, Equatable {
     /// ones this replaced.
     var baselineMinutes: Int?
     /// The study session length last picked, so the next one starts at it.
+    /// Any valid length — one of `studyPresets`, or a custom one.
     var studyMinutes: Int
+    /// The user's own study lengths, shown as buttons beside Custom.
+    var studyPresets: [Int]
 
     /// The figure to actually cut rungs from, answered or not.
     var effectiveBaselineMinutes: Int {
@@ -33,13 +36,15 @@ struct BreakSettings: Codable, Equatable {
         breakMinutes: Int = BreakRules.defaultBreakMinutes,
         cooldownMinutes: Int = BreakRules.defaultCooldownMinutes,
         baselineMinutes: Int? = nil,
-        studyMinutes: Int = BreakRules.defaultStudyMinutes
+        studyMinutes: Int = BreakRules.defaultStudyMinutes,
+        studyPresets: [Int] = BreakRules.defaultStudyPresets
     ) {
         self.breaksPerDay = BreakRules.clampBreaksPerDay(breaksPerDay)
         self.breakMinutes = BreakRules.clampMinutes(breakMinutes)
         self.cooldownMinutes = BreakRules.clampCooldownMinutes(cooldownMinutes)
         self.baselineMinutes = baselineMinutes.map(BreakRules.clampBaselineMinutes)
         self.studyMinutes = BreakRules.validStudyMinutes(studyMinutes)
+        self.studyPresets = BreakRules.validStudyPresets(studyPresets)
     }
 
     /// Decoded field-by-field with `decodeIfPresent` so that adding a setting in
@@ -73,6 +78,10 @@ struct BreakSettings: Codable, Equatable {
         studyMinutes = BreakRules.validStudyMinutes(
             try container.decodeIfPresent(Int.self, forKey: .studyMinutes)
                 ?? BreakRules.defaultStudyMinutes
+        )
+        studyPresets = BreakRules.validStudyPresets(
+            try container.decodeIfPresent([Int].self, forKey: .studyPresets)
+                ?? BreakRules.defaultStudyPresets
         )
     }
 }

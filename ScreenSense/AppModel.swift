@@ -434,6 +434,7 @@ final class AppModel: ObservableObject {
         updated.breakMinutes = BreakRules.clampMinutes(updated.breakMinutes)
         updated.baselineMinutes = updated.baselineMinutes.map(BreakRules.clampBaselineMinutes)
         updated.studyMinutes = BreakRules.validStudyMinutes(updated.studyMinutes)
+        updated.studyPresets = BreakRules.validStudyPresets(updated.studyPresets)
         guard updated != settings else { return }
         settings = updated
         BreakStore.saveSettings(updated)
