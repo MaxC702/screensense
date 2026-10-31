@@ -148,31 +148,41 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
         return ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
-            backgroundColor: UIColor(red: 0.043, green: 0.035, blue: 0.071, alpha: 0.93),
+            // The app's `Theme` palette, which this target cannot import: the
+            // page, paper-white ink, and the primary button drawn in that ink.
+            backgroundColor: UIColor(red: 0.059, green: 0.059, blue: 0.055, alpha: 0.93),
             icon: UIImage(systemName: Self.symbol(studying: studying, coolingDown: coolingDown, hasBreaks: hasBreaks)),
             title: ShieldConfiguration.Label(
                 text: title,
-                color: .white
+                color: Self.ink
             ),
             subtitle: ShieldConfiguration.Label(
                 text: subtitle,
-                color: UIColor.white.withAlphaComponent(0.65)
+                color: UIColor(red: 0.608, green: 0.604, blue: 0.576, alpha: 1)
             ),
             primaryButtonLabel: primaryLabel.map {
                 ShieldConfiguration.Label(
                     text: $0,
-                    color: canStart ? .white : UIColor.white.withAlphaComponent(0.4)
+                    // Pure black, not the page's near-black: iOS 27 drew the
+                    // near-black label as white on the paper-white fill.
+                    color: canStart
+                        ? .black
+                        : Self.ink
                 )
             },
+            // The waiting button sits darker than the page, not lighter: a grey
+            // label on a grey fill was too close in tone to read.
             primaryButtonBackgroundColor: primaryLabel == nil
                 ? nil
                 : (canStart
-                   ? UIColor(red: 0.486, green: 0.361, blue: 1.0, alpha: 1.0)
-                   : UIColor(white: 1.0, alpha: 0.12)),
+                   ? Self.ink
+                   : UIColor(red: 0.020, green: 0.020, blue: 0.018, alpha: 1)),
             secondaryButtonLabel: ShieldConfiguration.Label(
                 text: "Close",
-                color: UIColor.white.withAlphaComponent(0.75)
+                color: UIColor(red: 0.608, green: 0.604, blue: 0.576, alpha: 1)
             )
         )
     }
+
+    private static let ink = UIColor(red: 0.925, green: 0.922, blue: 0.902, alpha: 1)
 }

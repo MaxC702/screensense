@@ -19,22 +19,19 @@ struct StreakView: View {
     @State private var hasOfferedBaseline = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 13) {
-                    hero
-                    graphCard
-                    sourceCard
-                    rules
-                }
-                .padding(.horizontal, 17)
-                .padding(.bottom, 17)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ScreenTitle("Streak")
+                hero
+                graphSection
+                sourceSection
+                rules
             }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Streak")
-            .navigationBarTitleDisplayMode(.inline)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
         }
-        .tint(Theme.accentSoft)
+        .background(Theme.background.ignoresSafeArea())
         .onAppear {
             guard !model.hasChosenBaseline, !hasOfferedBaseline else { return }
             hasOfferedBaseline = true
@@ -51,40 +48,60 @@ struct StreakView: View {
         let days = model.streakDays
         let level = model.streakLevel
 
-        return Card {
-            HStack(spacing: 12) {
-                StreakFlame(size: 30, lit: days > 0, broken: model.streakBrokenToday, tint: level.tint)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(heroTitle)
-                        .font(Theme.display(24, .medium))
-                        .monospacedDigit()
-                    Text(heroSubtitle)
-                        .font(.system(size: 12.5))
-                        .foregroundColor(days > 0 ? level.tint : Theme.muted)
+        return VStack(alignment: .leading, spacing: 0) {
+            if days > 0 {
+                // The number is the page's headline; what it is a number *of*
+                // sits beside it rather than above, so it reads as one phrase.
+                HStack(alignment: .bottom, spacing: 12) {
+                    Text("\(days)")
+                        .font(Theme.numeral(88))
+                        .padding(.bottom, -10)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(days == 1 ? "day" : "days")
+                            .foregroundColor(Theme.foreground)
+                        HStack(spacing: 4) {
+                            StreakFlame(size: 13, lit: true, tint: level.tint)
+                            Text(heroSubtitle)
+                        }
+                        .foregroundColor(level.tint)
+                    }
+                    .font(.system(size: 15))
+                    .padding(.bottom, 4)
                 }
-                Spacer()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(days) day \(level.name) streak")
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    StreakFlame(size: 30, lit: false, broken: model.streakBrokenToday)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(heroTitle)
+                            .font(Theme.display(28))
+                        Text(heroSubtitle)
+                            .font(.system(size: 15))
+                            .foregroundColor(Theme.muted)
+                    }
+                }
             }
 
             StreakLadder(level: level, target: model.earnedStreakLevel)
+                .padding(.top, 24)
 
-            if let charge = model.levelCharge, days > 0 {
-                HStack(spacing: 9) {
-                    LevelBattery(charge: charge, tint: level.tint, size: CGSize(width: 9, height: 21))
-                    Text(chargeCaption)
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
+            if days > 0 {
+                Text(chargeCaption)
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
             }
 
             if model.isRelighting {
                 Text("Relighting — \(model.daysToRelight) more day\(model.daysToRelight == 1 ? "" : "s") back to \(model.earnedStreakLevel.name).")
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 14))
                     .foregroundColor(Theme.muted)
+                    .padding(.top, 6)
             }
         }
+        .padding(.top, 8)
     }
 
     /// The day a run is lost is not a day with no streak on it — it is a day
@@ -114,31 +131,29 @@ struct StreakView: View {
 
     // MARK: - Graph
 
-    private var graphCard: some View {
+    private var graphSection: some View {
         let points = model.dailyLevels(days: window)
 
-        return Card {
-            HStack {
-                Text("Last \(window) days").font(Theme.display(15, .medium))
-                Spacer()
-                Text("each day's level")
-                    .font(.system(size: 10.5))
-                    .foregroundColor(Theme.faint)
-            }
+        return VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Last \(window) days")
+            Rule()
 
-            StreakGraph(points: points)
-                .frame(height: 186)
+            StreakGraph(points: points, current: model.streakLevel)
+                .frame(height: 156)
+                .padding(.top, 20)
 
             // No caption. The rungs are named down the side and the days are
             // named along the bottom, which is the whole of what a sentence
             // under it used to say.
             if points.allSatisfy({ $0.level == nil }) {
                 Text("Nothing to plot yet — the line starts once a day is behind you.")
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
                     .foregroundColor(Theme.faint)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
             }
         }
+        .padding(.top, 48)
     }
 
     // MARK: - What the rungs are cut from
@@ -155,90 +170,81 @@ struct StreakView: View {
 
     // MARK: - Where the level comes from
 
-    private var sourceCard: some View {
-        Card {
-            if let average = model.averageUnblockedMinutes {
-                let counted = min(model.streakDays, window)
-                HStack(spacing: 10) {
-                    Text(minutes(average))
-                        .font(Theme.display(26, .demiBold))
-                        .monospacedDigit()
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("min a day").font(.system(size: 11.5)).foregroundColor(Theme.muted)
-                        Text(counted == 1 ? "today so far" : "averaged over \(counted) days")
-                            .font(.system(size: 9.5))
-                            .foregroundColor(Theme.faint)
+    private var sourceSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Daily average")
+            Rule()
+
+            Group {
+                if let average = model.averageUnblockedMinutes {
+                    let counted = min(model.streakDays, window)
+                    figure(
+                        minutes(average),
+                        counted == 1 ? "min a day, today so far" : "min a day, over \(counted) days",
+                        level: model.earnedStreakLevel
+                    )
+                    paragraph("What you actually unblocked, not what you allowed yourself. Today counts as it goes — \(model.minutesUsedToday) min so far, and ending a break early costs you less of it.")
+                    // Otherwise the minutes and the level beside them can look
+                    // as if they disagree with the ladder note underneath, which
+                    // is read on the band set now.
+                    if model.weekSpansBaselineChange {
+                        paragraph("Days before you changed where you started keep the level they earned then.")
                     }
-                    Spacer()
-                    pill(model.earnedStreakLevel)
+                } else {
+                    figure("\(model.dailyUnblockedMinutes)", "min a day, your budget at most", level: model.configuredStreakLevel)
+                    paragraph(model.streakBrokenToday
+                              ? "A lost run costs the rest of the day, so there is nothing here to average yet. The flame relights on tomorrow's minutes."
+                              : "Nothing running to measure. Switch blocking on and the flame follows what you actually spend.")
                 }
-                Text("What you actually unblocked, not what you allowed yourself. Today counts as it goes — \(model.minutesUsedToday) min so far, and ending a break early costs you less of it.")
-                    .font(.system(size: 11.5))
-                    .foregroundColor(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                // Otherwise the minutes and the pill beside them can look as if
-                // they disagree with the ladder note underneath, which is read
-                // on the band set now.
-                if model.weekSpansBaselineChange {
-                    Text("Days before you changed where you started keep the level they earned then.")
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            } else {
-                HStack(spacing: 10) {
-                    Text("\(model.dailyUnblockedMinutes)")
-                        .font(Theme.display(26, .demiBold))
-                        .monospacedDigit()
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("min a day").font(.system(size: 11.5)).foregroundColor(Theme.muted)
-                        Text("your budget, at most").font(.system(size: 9.5)).foregroundColor(Theme.faint)
-                    }
-                    Spacer()
-                    pill(model.configuredStreakLevel)
-                }
-                Text(model.streakBrokenToday
-                     ? "A lost run costs the rest of the day, so there is nothing here to average yet. The flame relights on tomorrow's minutes."
-                     : "Nothing running to measure. Switch blocking on and the flame follows what you actually spend.")
-                    .font(.system(size: 11.5))
-                    .foregroundColor(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.top, 20)
 
             Text(ladderNote)
-                .font(.system(size: 11))
+                .font(.system(size: 13))
+                .lineSpacing(2)
                 .foregroundColor(Theme.faint)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12)
 
-            Divider().overlay(Theme.hairline)
-            baselineRow
+            RuledList {
+                baselineRow.ruledRow(padding: 14)
+            }
+            .padding(.top, 20)
 
             if let harder = model.harderBand {
                 Label(
                     "Blue flame for \(model.daysAtSummit) days — too easy now. Tap Change and pick \(harder.title.lowercased()): Blue flame would then mean cutting \(summitDrop(to: harder)) more minutes a day, down to \(StreakLevel.blueFlame.ceiling(band: harder) ?? 0) from \(StreakLevel.blueFlame.ceiling(band: model.baselineBand) ?? 0).",
                     systemImage: "arrow.up.right"
                 )
-                .font(.system(size: 11))
-                .foregroundColor(Theme.accentSoft)
+                .font(.system(size: 13))
+                .foregroundColor(Theme.foreground)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 14)
             }
         }
+        .padding(.top, 48)
     }
 
     // MARK: - What it costs
 
     private var rules: some View {
-        Card {
-            fact("checkmark.circle.fill", "Breaks don't cost the streak — only the minutes count.", tint: Theme.accentSoft)
-            fact(
-                "power",
-                "Turning blocking off does: the day is spent, the count restarts tomorrow, and the flame drops a rung. \(StreakLevel.relightDays) days of blocking wins the rung back.",
-                tint: .orange
-            )
-            if model.bestStreak > 0 {
-                fact("trophy.fill", "Best run: \(model.bestStreak) days.", tint: Theme.streak)
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("How it works")
+            Rule()
+
+            VStack(alignment: .leading, spacing: 16) {
+                fact("cup.and.saucer", "Breaks don't cost the streak — only the minutes count.")
+                fact(
+                    "power",
+                    "Turning blocking off does: the day is spent, the count restarts tomorrow, and the flame drops a rung. \(StreakLevel.relightDays) days of blocking wins the rung back."
+                )
+                if model.bestStreak > 0 {
+                    fact("trophy", "Best run: \(model.bestStreak) day\(model.bestStreak == 1 ? "" : "s").")
+                }
             }
+            .padding(.top, 20)
         }
+        .padding(.top, 48)
     }
 
     // MARK: - Pieces
@@ -268,23 +274,41 @@ struct StreakView: View {
         return "\(level.name) means \(ceiling) min a day or less for a starting point of \(model.baselineBand.phrase)."
     }
 
-    private func pill(_ level: StreakLevel) -> some View {
-        Text(level.name)
-            .font(.system(size: 10.5, weight: .bold))
-            .foregroundColor(level.tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(level.tint.opacity(0.16), in: Capsule())
+    /// The average, big, with what it is an average of and the level it earns
+    /// beside it — the level named in its own colour rather than boxed, since
+    /// the colour is the label.
+    private func figure(_ value: String, _ unit: String, level: StreakLevel) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(value)
+                .font(Theme.numeral(44))
+            Text(unit)
+                .font(.system(size: 15))
+                .foregroundColor(Theme.muted)
+            Spacer(minLength: 4)
+            Text(level.name)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(level.tint)
+        }
     }
 
-    private func fact(_ symbol: String, _ text: String, tint: Color) -> some View {
-        HStack(alignment: .top, spacing: 9) {
+    private func paragraph(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 14))
+            .lineSpacing(3)
+            .foregroundColor(Theme.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 14)
+    }
+
+    private func fact(_ symbol: String, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(tint)
-                .frame(width: 16)
+                .font(.system(size: 14))
+                .foregroundColor(Theme.faint)
+                .frame(width: 18)
             Text(text)
-                .font(.system(size: 12.5))
+                .font(.system(size: 14))
+                .lineSpacing(2)
                 .foregroundColor(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)

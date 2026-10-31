@@ -17,7 +17,8 @@ struct StudyDial: View {
     @State private var lastAngle: Double?
 
     private let size: CGFloat = 264
-    private let lineWidth: CGFloat = 18
+    private let lineWidth: CGFloat = 3
+    private let knobSize: CGFloat = 22
     private let haptics = UISelectionFeedbackGenerator()
 
     private var hours: Int { minutes / 60 }
@@ -33,15 +34,15 @@ struct StudyDial: View {
             ticks
 
             Circle()
-                .stroke(Color.white.opacity(0.08), lineWidth: lineWidth)
+                .stroke(Theme.hairline, lineWidth: 2)
 
             // Hours already wound sit underneath as a full, quieter ring, so
             // 1 h 15 min reads as "a lap and a quarter" rather than as 15 min.
             WoundHours(minutes: shownMinutes)
-                .stroke(Theme.accent.opacity(0.35), lineWidth: lineWidth)
+                .stroke(Theme.faint, lineWidth: lineWidth)
 
             LapArc(minutes: shownMinutes)
-                .stroke(Theme.gradient, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(Theme.foreground, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
 
             knob
 
@@ -72,37 +73,34 @@ struct StudyDial: View {
         ForEach(0..<60, id: \.self) { minute in
             let major = minute % BreakRules.studyMinuteStep == 0
             Capsule()
-                .fill(Color.white.opacity(major ? 0.3 : 0.12))
-                .frame(width: major ? 2 : 1, height: major ? 9 : 5)
-                .offset(y: -(size / 2 + 10))
+                .fill(major ? Theme.faint : Theme.hairline)
+                .frame(width: 1, height: major ? 8 : 4)
+                .offset(y: -(size / 2 + 14))
                 .rotationEffect(.degrees(Double(minute) * 6))
         }
     }
 
     private var knob: some View {
         Circle()
-            .fill(Color.white)
-            .frame(width: lineWidth + 12, height: lineWidth + 12)
-            .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
+            .fill(Theme.foreground)
+            .overlay(Circle().fill(Theme.background).frame(width: 6, height: 6))
+            .frame(width: knobSize, height: knobSize)
             .offset(y: -size / 2)
             .rotationEffect(.degrees(shownMinutes * 6))
     }
 
     private var readout: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             Text(clockText)
-                .font(Theme.display(54, .ultraLight))
-                .monospacedDigit()
+                .font(Theme.numeral(68))
                 .contentTransition(.numericText())
             Text(hours == 0 ? "minutes" : "hours")
-                .font(.system(size: 11, weight: .bold))
-                .kerning(1.2)
-                .textCase(.uppercase)
-                .foregroundColor(Theme.faint)
-            Text("Ends at \(Date.now.addingTimeInterval(TimeInterval(minutes * 60)).formatted(date: .omitted, time: .shortened))")
-                .font(.system(size: 12))
+                .font(.system(size: 13))
                 .foregroundColor(Theme.muted)
-                .padding(.top, 6)
+            Text("Ends at \(Date.now.addingTimeInterval(TimeInterval(minutes * 60)).formatted(date: .omitted, time: .shortened))")
+                .font(.system(size: 13).monospacedDigit())
+                .foregroundColor(Theme.faint)
+                .padding(.top, 8)
         }
     }
 

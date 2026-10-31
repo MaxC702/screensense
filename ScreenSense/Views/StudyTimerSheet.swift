@@ -25,35 +25,36 @@ struct StudyTimerSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Card {
-                        StudyDial(minutes: $minutes)
-                            .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 0) {
+                    ScreenTitle("Custom session")
 
-                        startButton
-                        saveButton
-                    }
+                    StudyDial(minutes: $minutes)
+                        .frame(maxWidth: .infinity)
+
+                    startButton
+                        .padding(.top, 32)
+                    saveButton
+                        .padding(.top, 8)
 
                     SectionLabel("My timers")
-                    Card {
+                        .padding(.top, 32)
+                    RuledList {
                         ForEach(presets, id: \.self) { preset in
                             presetRow(preset)
-                            if preset != presets.last {
-                                Divider().overlay(Theme.hairline)
-                            }
                         }
                     }
                     Text(timersNote)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: 13))
+                        .lineSpacing(2)
                         .foregroundColor(Theme.faint)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 4)
+                        .padding(.top, 16)
                 }
-                .padding(17)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 32)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Custom session")
-            .navigationBarTitleDisplayMode(.inline)
+            .pushedScreen("Custom session")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -61,26 +62,18 @@ struct StudyTimerSheet: View {
                 }
             }
         }
-        .tint(Theme.accentSoft)
+        .foregroundColor(Theme.foreground)
+        .tint(Theme.muted)
     }
 
     // MARK: - Actions
 
     private var startButton: some View {
-        Button {
+        Button("Start \(BreakRules.studyLengthText(minutes)) session") {
             model.startStudy(minutes: minutes)
             dismiss()
-        } label: {
-            Text("Start \(BreakRules.studyLengthText(minutes)) session")
-                .font(.system(size: 13, weight: .bold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    model.canStartStudy ? AnyShapeStyle(Theme.gradient) : AnyShapeStyle(Color.white.opacity(0.07)),
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
-                .foregroundColor(model.canStartStudy ? .white : Theme.faint)
         }
+        .buttonStyle(PillButtonStyle())
         .disabled(!model.canStartStudy)
     }
 
@@ -93,11 +86,11 @@ struct StudyTimerSheet: View {
             }
         } label: {
             Label(saveTitle, systemImage: isSaved ? "checkmark" : "plus")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 14, weight: .medium))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
-                .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .foregroundColor(isSaved || isFull ? Theme.faint : Theme.accentSoft)
+                .frame(height: 44)
+                .foregroundColor(isSaved || isFull ? Theme.faint : Theme.muted)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(isSaved || isFull)
@@ -114,7 +107,7 @@ struct StudyTimerSheet: View {
     private func presetRow(_ preset: Int) -> some View {
         HStack {
             Text(BreakRules.studyLengthText(preset))
-                .font(Theme.display(15, .medium))
+                .font(.system(size: 17))
                 .monospacedDigit()
             Spacer(minLength: 0)
             // The last one stays: the row on the home screen needs at least
@@ -123,15 +116,18 @@ struct StudyTimerSheet: View {
                 Button {
                     model.updateSettings { $0.studyPresets.removeAll { $0 == preset } }
                 } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(Theme.faint)
+                    Image(systemName: "minus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Theme.muted)
+                        .frame(width: 26, height: 26)
+                        .overlay(Circle().stroke(Theme.hairline, lineWidth: 1))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Remove \(BreakRules.studyLengthText(preset))")
             }
         }
-        .padding(.vertical, 2)
+        .ruledRow()
     }
 
     private var timersNote: String {

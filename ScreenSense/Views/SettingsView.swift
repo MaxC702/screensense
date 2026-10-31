@@ -30,27 +30,35 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 13) {
-                SectionLabel("Protection")
-                blockedAppsCard
-                blockingCard
+            VStack(alignment: .leading, spacing: 0) {
+                ScreenTitle("Settings")
 
-                SectionLabel("Breaks")
-                levelCard
-                breaksPerDayCard
-                breakLengthCard
-                cooldownCard
+                SectionLabel("Protection")
+                RuledList {
+                    blockedAppsRow
+                    blockingRow
+                }
+
+                SectionLabel("Breaks").padding(.top, 40)
+                RuledList {
+                    levelRow
+                    breaksPerDayRow
+                    breakLengthRow
+                    cooldownRow
+                }
+
                 #if DEBUG
-                diagnosticsLink
+                SectionLabel("Support").padding(.top, 40)
+                RuledList { diagnosticsLink }
                 #endif
+
                 explainer
             }
-            .padding(.horizontal, 17)
-            .padding(.bottom, 17)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
         }
         .background(Theme.background.ignoresSafeArea())
-        .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
+        .pushedScreen("Settings")
         .sheet(isPresented: $isEditingBaseline) {
             BaselineSheet().environmentObject(model)
         }
@@ -64,43 +72,37 @@ struct SettingsView: View {
 
     // MARK: - Protection
 
-    private var blockedAppsCard: some View {
-        Card {
-            HStack(spacing: 10) {
-                IconTile(symbol: "square.grid.2x2.fill")
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Blocked apps").font(Theme.display(15, .medium))
-                    Text(model.blockedCount == 0
-                         ? "Nothing selected yet"
-                         : "\(model.blockedCount) apps, categories and sites")
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                }
-                Spacer()
-            }
+    private var blockedAppsRow: some View {
+        HStack(spacing: 16) {
+            rowTitle(
+                "Blocked apps",
+                model.blockedCount == 0
+                    ? "Nothing selected yet"
+                    : "\(model.blockedCount) apps, categories and sites"
+            )
 
             Button {
                 model.isPickerPresented = true
             } label: {
-                Text(model.blockedCount == 0 ? "Choose apps" : "Edit selection")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(
-                        Theme.accent.opacity(0.16),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
-                    .foregroundColor(Theme.accentSoft)
+                HStack(spacing: 2) {
+                    Text(model.blockedCount == 0 ? "Choose" : "Edit")
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .font(.system(size: 15))
+                .foregroundColor(Theme.muted)
             }
+            .buttonStyle(.plain)
             // Taking apps off the list is turning blocking off one app at a
             // time, so it is locked for the session along with the switch.
             .disabled(model.isStudying)
             .opacity(model.isStudying ? 0.45 : 1)
         }
+        .ruledRow()
     }
 
-    private var blockingCard: some View {
-        Card {
+    private var blockingRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: Binding(
                 get: { model.state.blockingEnabled },
                 // Turning it *on* is never second-guessed — friction belongs
@@ -116,17 +118,9 @@ struct SettingsView: View {
                     }
                 }
             )) {
-                HStack(spacing: 10) {
-                    IconTile(symbol: "lock.shield.fill")
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Block these apps").font(Theme.display(15, .medium))
-                        Text(blockingSubtitle)
-                            .font(.system(size: 11.5))
-                            .foregroundColor(Theme.muted)
-                    }
-                }
+                rowTitle("Block these apps", blockingSubtitle)
             }
-            .tint(Theme.accent)
+            .toggleStyle(InkToggleStyle())
             .disabled(model.blockedCount == 0 || model.isStudying)
             .opacity(model.blockedCount == 0 || model.isStudying ? 0.45 : 1)
 
@@ -140,6 +134,7 @@ struct SettingsView: View {
                 note("Out of breaks until midnight. Switching off is not a sixth break — it ends the streak.")
             }
         }
+        .ruledRow()
         .alert(unblockAlertTitle, isPresented: $isConfirmingUnblock) {
             // iOS puts the cancel role last whatever order these are written in,
             // so the reflex — the bottom button, the one under your thumb — is
@@ -219,52 +214,43 @@ struct SettingsView: View {
     /// the words "White heat" here does not receive two facts, they receive a
     /// contradiction. The allowance's own worth is still said, in the sentence
     /// under the ladder, where it is labelled as being about the allowance.
-    private var levelCard: some View {
-        let level = model.streakLevel
+    private var levelRow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            rowHeading("Daily allowance", trailing: "\(model.dailyUnblockedMinutes) min a day", trailingColor: Theme.muted)
 
-        return Card {
-            HStack(spacing: 10) {
-                IconTile(symbol: "flame.fill")
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Daily allowance").font(Theme.display(15, .medium))
-                    Text("\(model.dailyUnblockedMinutes) unblocked minute\(model.dailyUnblockedMinutes == 1 ? "" : "s") a day")
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                }
-                Spacer()
-                Text(level.name)
-                    .font(.system(size: 10.5, weight: .bold))
-                    .foregroundColor(level.tint)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(level.tint.opacity(0.16), in: Capsule())
-            }
-
-            StreakLadder(level: level, target: model.earnedStreakLevel)
+            StreakLadder(level: model.streakLevel, target: model.earnedStreakLevel)
+                .padding(.top, 16)
 
             Text(flameNote)
-                .font(.system(size: 11))
+                .font(.system(size: 14))
+                .lineSpacing(2)
                 .foregroundColor(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 16)
 
             Text(allowanceNote)
-                .font(.system(size: 11))
+                .font(.system(size: 13))
+                .lineSpacing(2)
                 .foregroundColor(Theme.faint)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
 
             if model.isRelighting {
                 note("A lost run has your flame at \(model.streakLevel.name) for now. \(relightHint)")
+                    .padding(.top, 12)
             }
 
-            Divider().overlay(Theme.hairline)
             BaselineRow(band: model.baselineBand, hasChosen: model.hasChosenBaseline) {
                 isEditingBaseline = true
             }
+            .padding(.top, 16)
 
             if let outgrown = outgrownBaselineNote {
                 note(outgrown)
+                    .padding(.top, 12)
             }
         }
+        .ruledRow()
     }
 
     /// What the badge above is actually reading, so the number on this card and
@@ -322,22 +308,22 @@ struct SettingsView: View {
 
     // MARK: - Breaks per day
 
-    private var breaksPerDayCard: some View {
-        Card {
-            cardHeader(symbol: "number", title: "Breaks per day")
+    private var breaksPerDayRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            rowHeading("Breaks per day")
 
-            Picker(
-                "Breaks per day",
-                selection: Binding(
-                    get: { model.settings.breaksPerDay },
-                    set: { value in model.updateSettings { $0.breaksPerDay = value } }
-                )
-            ) {
+            HStack(spacing: 6) {
                 ForEach(BreakRules.breaksRange, id: \.self) { count in
-                    Text("\(count)").tag(count)
+                    ChoiceChip(
+                        title: "\(count)",
+                        selected: count == model.settings.breaksPerDay,
+                        height: 36
+                    ) {
+                        model.updateSettings { $0.breaksPerDay = count }
+                    }
+                    .accessibilityLabel("\(count) break\(count == 1 ? "" : "s") a day")
                 }
             }
-            .pickerStyle(.segmented)
 
             if model.state.breaksUsed > model.settings.breaksPerDay {
                 // Spent breaks aren't refunded, so lowering the allowance below
@@ -345,17 +331,14 @@ struct SettingsView: View {
                 note("You've already used \(model.state.breaksUsed) today — this takes effect tomorrow.")
             }
         }
+        .ruledRow()
     }
 
     // MARK: - Break length
 
-    private var breakLengthCard: some View {
-        Card {
-            cardHeader(
-                symbol: "timer",
-                title: "Break length",
-                trailing: "\(model.settings.breakMinutes) min"
-            )
+    private var breakLengthRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            rowHeading("Break length", trailing: "\(model.settings.breakMinutes) min")
 
             Slider(
                 value: Binding(
@@ -365,22 +348,22 @@ struct SettingsView: View {
                 in: Double(BreakRules.minMinutes)...Double(BreakRules.maxMinutes),
                 step: 1
             )
-            .tint(Theme.accent)
+            .tint(Theme.foreground)
 
             bounds("\(BreakRules.minMinutes) min", "\(BreakRules.maxMinutes) min")
         }
+        .ruledRow()
     }
 
     // MARK: - Cooldown
 
-    private var cooldownCard: some View {
-        Card {
-            cardHeader(
-                symbol: "hourglass",
-                title: "Wait between breaks",
-                subtitle: "Before the next one can start",
-                trailing: "\(model.settings.cooldownMinutes) min"
-            )
+    private var cooldownRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            rowHeading("Wait between breaks", trailing: "\(model.settings.cooldownMinutes) min")
+            Text("Before the next one can start")
+                .font(.system(size: 13))
+                .foregroundColor(Theme.muted)
+                .padding(.top, -8)
 
             Slider(
                 value: Binding(
@@ -390,7 +373,7 @@ struct SettingsView: View {
                 in: Double(BreakRules.minCooldownMinutes)...Double(BreakRules.maxCooldownMinutes),
                 step: 5
             )
-            .tint(Theme.accent)
+            .tint(Theme.foreground)
 
             bounds("\(BreakRules.minCooldownMinutes) min", "1 hour")
 
@@ -398,28 +381,40 @@ struct SettingsView: View {
                 note("Cooling down now — \(model.cooldownText) left. Changes apply to the next one.")
             }
         }
+        .ruledRow()
     }
 
     // MARK: - Pieces
 
-    private func cardHeader(
-        symbol: String,
-        title: String,
-        subtitle: String? = nil,
-        trailing: String? = nil
-    ) -> some View {
-        HStack(spacing: 10) {
-            IconTile(symbol: symbol)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(Theme.display(15, .medium))
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                }
-            }
+    /// A row's name and what it currently covers, set the way every row with a
+    /// control on its right is.
+    private func rowTitle(_ title: String, _ subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.system(size: 16))
+                .foregroundColor(Theme.foreground)
+            Text(subtitle)
+                .font(.system(size: 13))
+                .foregroundColor(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// A row's name, with its current value opposite for the rows whose control
+    /// sits underneath rather than beside it.
+    private func rowHeading(_ title: String, trailing: String? = nil, trailingColor: Color = Theme.foreground) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.system(size: 16))
+                .foregroundColor(Theme.foreground)
             Spacer()
-            if let trailing { Pill(text: trailing) }
+            if let trailing {
+                Text(trailing)
+                    .font(.system(size: 15))
+                    .monospacedDigit()
+                    .foregroundColor(trailingColor)
+            }
         }
     }
 
@@ -429,14 +424,17 @@ struct SettingsView: View {
             Spacer()
             Text(high)
         }
-        .font(.system(size: 11))
+        .font(.system(size: 12))
         .foregroundColor(Theme.faint)
     }
 
+    /// The warm colour is the streak's, and every note here is about something
+    /// the streak stands to lose or a limit on a break — which is the same thing.
     private func note(_ text: String) -> some View {
         Label(text, systemImage: "info.circle")
-            .font(.system(size: 11))
-            .foregroundColor(.orange)
+            .font(.system(size: 13))
+            .foregroundColor(Theme.streak)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// A log reader for the three extensions, which have no console of their own
@@ -456,37 +454,31 @@ struct SettingsView: View {
         NavigationLink {
             DiagnosticsView()
         } label: {
-            Card {
-                HStack(spacing: 10) {
-                    IconTile(symbol: "waveform.path.ecg")
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Diagnostics").font(Theme.display(15, .medium))
-                        Text("What the extensions actually did, and when")
-                            .font(.system(size: 11.5))
-                            .foregroundColor(Theme.muted)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Theme.faint)
-                }
+            HStack(spacing: 16) {
+                rowTitle("Diagnostics", "What the extensions actually did, and when")
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(Theme.faint)
             }
+            .contentShape(Rectangle())
+            .ruledRow()
         }
         .buttonStyle(.plain)
     }
     #endif
 
     private var explainer: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("A break runs on the clock. Start a 5-minute break and the block comes back 5 minutes later, whether or not you spent them in the app.")
             Text("The wait between breaks is the same, so it can't be run down from inside a blocked app either.")
             Text("Breaks reset at midnight. Ending one early doesn't give it back, and it still starts the wait.")
             Text("Your streak's level comes from breaks per day times break length — the unblocked time you allow yourself. The wait between breaks changes when that time can be spent, not how much of it there is, so it doesn't count towards the level.")
         }
-        .font(.system(size: 11))
-        .foregroundColor(Theme.muted)
+        .font(.system(size: 12))
+        .lineSpacing(2)
+        .foregroundColor(Theme.faint)
+        .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 6)
-        .padding(.top, 4)
+        .padding(.top, 40)
     }
 }

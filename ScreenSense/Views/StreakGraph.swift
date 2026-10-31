@@ -12,9 +12,12 @@ import SwiftUI
 /// app knew nothing about is a claim it cannot make.
 struct StreakGraph: View {
     let points: [AppModel.DayPoint]
+    /// The rung the flame is on now. Its line is drawn solid and its name lit,
+    /// so the graph says where today stands before any point is traced.
+    let current: StreakLevel
 
     /// Room for the rung names down the right-hand side.
-    private let labelWidth: CGFloat = 62
+    private let labelWidth: CGFloat = 76
     /// Room for the day names along the bottom.
     private let dayLabelHeight: CGFloat = 20
     /// Keeps the first and last points off the edges, so their dots are whole
@@ -34,7 +37,6 @@ struct StreakGraph: View {
 
             ZStack(alignment: .topLeading) {
                 rungs(width: plotWidth, height: plotHeight)
-                area(width: plotWidth, height: plotHeight)
                 line(width: plotWidth, height: plotHeight)
                 dots(width: plotWidth, height: plotHeight)
                 labels(plotWidth: plotWidth, height: plotHeight)
@@ -53,8 +55,8 @@ struct StreakGraph: View {
         ForEach(Array(points.enumerated()), id: \.element.id) { index, point in
             let isToday = index == points.count - 1
             Text(isToday ? "Today" : Self.weekday.string(from: point.date))
-                .font(.system(size: 9, weight: isToday ? .bold : .regular))
-                .foregroundColor(isToday ? Theme.streak : Theme.faint)
+                .font(.system(size: 12))
+                .foregroundColor(isToday ? Theme.foreground : Theme.faint)
                 .fixedSize()
                 .position(x: x(index, in: width), y: plotHeight + dayLabelHeight / 2)
         }
@@ -69,31 +71,9 @@ struct StreakGraph: View {
                 path.move(to: CGPoint(x: 0, y: y))
                 path.addLine(to: CGPoint(x: width, y: y))
             }
-            .stroke(rung.tint.opacity(0.18), lineWidth: 1)
-        }
-    }
-
-    /// A wash under the line, so a run near the top reads as a block of colour
-    /// before any of the rungs have been read.
-    private func area(width: CGFloat, height: CGFloat) -> some View {
-        ForEach(Array(runs().enumerated()), id: \.offset) { _, run in
-            Path { path in
-                guard let first = run.first else { return }
-                path.move(to: CGPoint(x: x(first, in: width), y: height))
-                for index in run {
-                    path.addLine(to: CGPoint(x: x(index, in: width), y: y(at: index, in: height)))
-                }
-                if let last = run.last {
-                    path.addLine(to: CGPoint(x: x(last, in: width), y: height))
-                }
-                path.closeSubpath()
-            }
-            .fill(
-                LinearGradient(
-                    colors: [Theme.streak.opacity(0.22), Theme.streak.opacity(0.0)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            .stroke(
+                Theme.hairline,
+                style: StrokeStyle(lineWidth: 1, dash: rung == current ? [] : [2, 4])
             )
         }
     }
@@ -107,8 +87,8 @@ struct StreakGraph: View {
                 }
             }
             .stroke(
-                Theme.streak,
-                style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
+                current.tint,
+                style: StrokeStyle(lineWidth: 1.75, lineCap: .round, lineJoin: .round)
             )
         }
     }
@@ -116,26 +96,31 @@ struct StreakGraph: View {
     private func dots(width: CGFloat, height: CGFloat) -> some View {
         ForEach(Array(points.enumerated()), id: \.element.id) { index, point in
             if let level = point.level {
-                // Today is drawn larger: "where am I now" is the first thing
-                // anyone looks for on a line that ends somewhere.
+                // Today is drawn larger and solid: "where am I now" is the first
+                // thing anyone looks for on a line that ends somewhere. The rest
+                // are rings, so the line reads through them.
                 let isToday = index == points.count - 1
+                let diameter: CGFloat = isToday ? 9 : 5
                 Circle()
-                    .fill(level.tint)
-                    .frame(width: isToday ? 10 : 5, height: isToday ? 10 : 5)
+                    .fill(isToday ? level.tint : Theme.background)
+                    .overlay(Circle().stroke(level.tint, lineWidth: 1.5))
+                    .frame(width: diameter, height: diameter)
                     .position(x: x(index, in: width), y: y(at: index, in: height))
             }
         }
     }
 
     /// The rung names are the y axis. They sit in their own column to the right
-    /// of the plot, on the same baselines as the lines they name.
+    /// of the plot, flush right, on the same baselines as the lines they name.
     private func labels(plotWidth: CGFloat, height: CGFloat) -> some View {
         let column = labelWidth - 8
         return ForEach(StreakLevel.allCases, id: \.rawValue) { rung in
             Text(rung.name)
-                .font(.system(size: 8.5, weight: .semibold))
-                .foregroundColor(rung.tint.opacity(0.75))
-                .frame(width: column, alignment: .leading)
+                .font(.system(size: 12))
+                .foregroundColor(rung == current ? rung.tint : Theme.faint)
+                .lineLimit(1)
+                .fixedSize()
+                .frame(width: column, alignment: .trailing)
                 .position(x: plotWidth + 8 + column / 2, y: y(for: rung, in: height))
         }
     }

@@ -14,54 +14,51 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 13) {
+                VStack(alignment: .leading, spacing: 0) {
                     header
                     if PreviewEnvironment.isSimulator { simulatorBanner }
-                    if needsSetup { setupCard }
+                    if needsSetup { setupRow }
 
                     // A running session takes the breaks' place rather than
                     // sitting above them: there is nothing to do with a break
-                    // until it ends, and a card offering one would be a lie.
+                    // until it ends, and a section offering one would be a lie.
                     if model.isStudying {
-                        SectionLabel("Study")
                         studyHero
                     } else {
-                        SectionLabel("Breaks")
                         breaksHero
                         if !model.isOnBreak { budgetRows }
-
-                        SectionLabel("Study")
-                        studyCard
+                        studySection
                     }
 
                     footnote
                     buildStamp
                 }
-                .padding(.horizontal, 17)
-                .padding(.bottom, 17)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 32)
             }
             .background(Theme.background.ignoresSafeArea())
+            // Never shown; it is what the back button on Settings says.
+            .navigationTitle("Home")
             // Hidden only for this screen; SettingsView brings its own bar back.
             .toolbar(.hidden, for: .navigationBar)
         }
-        .tint(Theme.accentSoft)
+        .tint(Theme.muted)
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .top, spacing: 4) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("ScreenSense")
-                    .font(Theme.display(28))
-                    .kerning(0.3)
+                    .font(Theme.display(30))
 
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Circle()
-                        .fill(model.state.blockingEnabled ? Color.green : Theme.faint)
-                        .frame(width: 7, height: 7)
+                        .fill(model.state.blockingEnabled ? Theme.ok : Theme.faint)
+                        .frame(width: 6, height: 6)
                     statusLine
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                 }
             }
             Spacer()
@@ -69,15 +66,15 @@ struct HomeView: View {
             NavigationLink {
                 SettingsView()
             } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 38, height: 38)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18))
+                    .foregroundColor(Theme.muted)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Circle())
             }
             .accessibilityLabel("Settings")
         }
-        .padding(.top, 4)
+        .padding(.top, 8)
     }
 
     /// The level's name sits here, immediately under the wordmark and a few
@@ -101,17 +98,17 @@ struct HomeView: View {
         // that a rung is missing is said by nothing else on this screen.
         let trailing = model.isRelighting
             ? Text("Relighting").foregroundColor(model.streakLevel.tint)
-            : Text("\(model.streakLevel.name) streak").foregroundColor(model.streakLevel.tint)
+            : Text(model.streakLevel.name).foregroundColor(model.streakLevel.tint)
 
         return status
             + Text("  ·  ").foregroundColor(Theme.faint)
             + trailing
     }
 
-    /// Days blocking has been left on, sat in the header rather than in the stack
-    /// of cards below it: it is a score, not a control.
+    /// Days blocking has been left on, sat in the header rather than in the
+    /// page below it: it is a score, not a control.
     ///
-    /// Tapping it opens the streak's tab. A number in a coloured pill is not
+    /// Tapping it opens the streak's tab. A number beside a flame is not
     /// self-explanatory — it says something is being counted without saying what
     /// earns it or what costs it — and the badge is the thing someone reaches for
     /// when they want to know, so the badge is what answers.
@@ -124,28 +121,24 @@ struct HomeView: View {
         let tint = model.streakLevel.tint
 
         return Button(action: onShowStreak) {
-            HStack(spacing: 5) {
-                StreakFlame(size: 13, lit: lit, broken: model.streakBrokenToday, tint: tint)
+            HStack(spacing: 6) {
+                StreakFlame(size: 14, lit: lit, broken: model.streakBrokenToday, tint: tint)
                 Text("\(days)")
-                    .font(Theme.display(17, .demiBold))
+                    .font(.system(size: 15, weight: .medium))
                     .monospacedDigit()
-                    .foregroundColor(lit ? .white : Theme.faint)
+                    .foregroundColor(lit ? Theme.foreground : Theme.faint)
 
                 // Rides inside the badge rather than beside it: it qualifies the
                 // flame, and a gauge floating on its own next to a number would
                 // be one more unexplained thing on the busiest line of the screen.
                 if let charge = model.levelCharge, lit {
-                    LevelBattery(charge: charge, tint: tint)
-                        .padding(.leading, 1)
+                    LevelBattery(charge: charge, tint: tint, size: CGSize(width: 6, height: 14))
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             // Matches the gear button, so the two sit on one line across the top.
-            .frame(height: 38)
-            .background(
-                lit ? tint.opacity(0.16) : Theme.card,
-                in: RoundedRectangle(cornerRadius: 13, style: .continuous)
-            )
+            .frame(height: 36)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(badgeLabel)
@@ -168,16 +161,12 @@ struct HomeView: View {
     private var simulatorBanner: some View {
         Label(
             "Simulator preview — nothing is actually blocked.",
-            systemImage: "exclamationmark.triangle.fill"
+            systemImage: "exclamationmark.triangle"
         )
-        .font(.system(size: 11, weight: .medium))
-        .foregroundColor(.orange)
+        .font(.system(size: 12))
+        .foregroundColor(Theme.streak)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(11)
-        .background(
-            Color.orange.opacity(0.10),
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-        )
+        .padding(.top, 20)
     }
 
     // MARK: - Setup
@@ -189,31 +178,35 @@ struct HomeView: View {
     /// deciding to.
     ///
     /// What Home does still have to do is get someone who has not set up yet to
-    /// the place where they can. This card is the only route across, and it
+    /// the place where they can. This row is the only route across, and it
     /// disappears the moment protection is actually running.
     private var needsSetup: Bool {
         model.blockedCount == 0 || !model.state.blockingEnabled
     }
 
-    private var setupCard: some View {
+    private var setupRow: some View {
         NavigationLink {
             SettingsView()
         } label: {
-            Card {
-                HStack(spacing: 10) {
-                    IconTile(symbol: model.blockedCount == 0 ? "square.grid.2x2.fill" : "lock.open.fill")
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(setupTitle).font(Theme.display(15, .medium))
+            RuledList {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(setupTitle)
+                            .font(.system(size: 16))
+                            .foregroundColor(Theme.foreground)
                         Text(setupSubtitle)
-                            .font(.system(size: 11.5))
+                            .font(.system(size: 13))
                             .foregroundColor(Theme.muted)
                     }
                     Spacer()
                     chevron
                 }
+                .ruledRow()
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.top, 24)
     }
 
     private var setupTitle: String {
@@ -228,59 +221,81 @@ struct HomeView: View {
         return "\(count) app\(count == 1 ? "" : "s"), categories and sites are unprotected"
     }
 
-    // MARK: - Breaks
+    // MARK: - Hero
 
-    /// Carries the gradient only when there is something to act on — a break to
-    /// take, or one running. Cooling down and out-of-breaks go flat, so the card
-    /// says whether the app is open to you before any of its text is read.
-    private var heroIsLive: Bool { model.canStartBreak || model.isOnBreak }
-
-    private var breaksHero: some View {
-        VStack(spacing: 14) {
-            HStack {
-                Text(model.isOnBreak ? "On a break" : "Breaks today")
-                    .font(Theme.display(15, .medium))
+    /// The heading over the ring, the ring, and what to do about it — the shape
+    /// both a break and a study session take, so the screen does not rearrange
+    /// itself when one becomes the other.
+    private func hero<Ring: View, Actions: View>(
+        title: String,
+        meta: String?,
+        @ViewBuilder ring: () -> Ring,
+        @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).foregroundColor(Theme.muted)
                 Spacer()
-                Pill(text: "\(model.breaksRemaining) of \(model.settings.breaksPerDay)")
-            }
-
-            BreakRing(fraction: ringFraction, onGradient: heroIsLive) {
-                VStack(spacing: 5) {
-                    Text(model.isOnBreak ? model.countdownText : "\(model.breaksRemaining)")
-                        .font(Theme.display(model.isOnBreak ? 31 : 38, .ultraLight))
+                if let meta {
+                    Text(meta)
                         .monospacedDigit()
-                    Text(ringCaption)
-                        .font(.system(size: 9.5, weight: .semibold))
-                        .kerning(0.4)
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(Theme.faint)
                 }
             }
+            .font(.system(size: 14))
 
-            if model.isOnBreak {
-                endBreakButton
-            } else {
-                startBreakButton
-                if model.isCoolingDown, model.breaksRemaining > 0 {
-                    Text("Breaks are spaced out so you can't take them back to back.")
-                        .font(.system(size: 11))
-                        .foregroundColor(heroIsLive ? .white.opacity(0.8) : Theme.muted)
-                        .multilineTextAlignment(.center)
-                }
+            ring()
+                .padding(.top, 32)
+
+            VStack(spacing: 12) {
+                actions()
             }
+            .padding(.top, 40)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(heroBackground)
+        .padding(.top, 40)
     }
 
-    @ViewBuilder
-    private var heroBackground: some View {
-        let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
-        if heroIsLive {
-            shape.fill(Theme.gradient)
-                .shadow(color: Theme.accent.opacity(0.32), radius: 17, y: 8)
-        } else {
-            shape.fill(Theme.card)
+    private func ringFigure(_ value: String, caption: String) -> some View {
+        VStack(spacing: 8) {
+            Text(value)
+                .font(Theme.numeral(value.count > 5 ? 52 : 64))
+                .foregroundColor(Theme.foreground)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(caption)
+                .font(.system(size: 13))
+                .foregroundColor(Theme.muted)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Breaks
+
+    private var breaksHero: some View {
+        hero(
+            title: model.isOnBreak ? "On a break" : "Breaks today",
+            meta: model.isOnBreak
+                ? "\(model.breaksRemaining) of \(model.settings.breaksPerDay) left"
+                : "\(model.breaksRemaining) of \(model.settings.breaksPerDay)"
+        ) {
+            HeroRing(fraction: ringFraction) {
+                ringFigure(
+                    model.isOnBreak ? model.countdownText : "\(model.breaksRemaining)",
+                    caption: ringCaption
+                )
+            }
+        } actions: {
+            if model.isOnBreak {
+                Button("End break now") { model.endBreakEarly() }
+                    .buttonStyle(PillButtonStyle(kind: .secondary))
+            } else {
+                startBreakButton
+                if model.breaksRemaining == 0 {
+                    caption("Breaks reset at midnight.")
+                } else if model.isCoolingDown {
+                    caption("Breaks are spaced out so you can't take them back to back.")
+                }
+            }
         }
     }
 
@@ -291,44 +306,14 @@ struct HomeView: View {
     }
 
     private var ringCaption: String {
-        if model.isOnBreak { return "BREAK RUNNING" }
-        return model.breaksRemaining == 1 ? "BREAK LEFT" : "BREAKS LEFT"
+        if model.isOnBreak { return "until blocking resumes" }
+        return model.breaksRemaining == 1 ? "break left" : "breaks left"
     }
 
     private var startBreakButton: some View {
-        Button {
-            model.startBreak()
-        } label: {
-            Text(startButtonTitle)
-                .font(.system(size: 13, weight: .bold))
-                .monospacedDigit()
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    model.canStartBreak ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.white.opacity(0.07)),
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
-                .foregroundColor(model.canStartBreak
-                                 ? Color(red: 0.357, green: 0.235, blue: 0.878)
-                                 : Theme.faint)
-        }
-        .disabled(!model.canStartBreak)
-    }
-
-    private var endBreakButton: some View {
-        Button(role: .destructive) {
-            model.endBreakEarly()
-        } label: {
-            Text("End break now")
-                .font(.system(size: 13, weight: .bold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(
-                    Color.white.opacity(0.16),
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
-                .foregroundColor(.white.opacity(0.85))
-        }
+        Button(startButtonTitle) { model.startBreak() }
+            .buttonStyle(PillButtonStyle())
+            .disabled(!model.canStartBreak)
     }
 
     /// The button doubles as the cooldown readout — a disabled control with no
@@ -345,25 +330,71 @@ struct HomeView: View {
         return "Start \(model.settings.breakMinutes)-minute break"
     }
 
+    // MARK: - Budget rows
+
+    private var budgetRows: some View {
+        RuledList {
+            // A second route into settings, right next to the numbers it changes —
+            // the gear alone makes you go looking for it.
+            NavigationLink {
+                SettingsView()
+            } label: {
+                valueRow("Each break lasts", "\(model.settings.breakMinutes) min", chevron: true)
+            }
+            .buttonStyle(.plain)
+
+            valueRow("Breaks per day", "\(model.settings.breaksPerDay)")
+            valueRow("Wait between breaks", "\(model.settings.cooldownMinutes) min")
+        }
+        .padding(.top, 40)
+    }
+
+    private func valueRow(_ title: String, _ value: String, chevron showChevron: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            Text(title).foregroundColor(Theme.muted)
+            Spacer()
+            Text(value)
+                .monospacedDigit()
+                .foregroundColor(Theme.foreground)
+            // The rows without one keep its width, so the values line up.
+            chevron.opacity(showChevron ? 1 : 0)
+        }
+        .font(.system(size: 15))
+        .contentShape(Rectangle())
+        .ruledRow(padding: 14)
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(Theme.faint)
+    }
+
+    private func caption(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13))
+            .foregroundColor(Theme.faint)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     // MARK: - Study
 
-    private var studyCard: some View {
-        Card {
-            HStack(spacing: 10) {
-                IconTile(symbol: "book.fill")
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Study session").font(Theme.display(15, .medium))
-                    Text(studySubtitle)
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+    private var studySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Study")
+            Text("Study session")
+                .font(Theme.display(24))
+            Text(studySubtitle)
+                .font(.system(size: 14))
+                .foregroundColor(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
 
             HStack(spacing: 8) {
                 ForEach(model.settings.studyPresets, id: \.self) { minutes in
-                    studyChip(
-                        BreakRules.studyLengthText(minutes),
+                    ChoiceChip(
+                        title: BreakRules.studyLengthText(minutes),
                         selected: minutes == model.settings.studyMinutes
                     ) {
                         model.updateSettings { $0.studyMinutes = minutes }
@@ -372,122 +403,66 @@ struct HomeView: View {
                 // Shows the custom length once one is picked, so the button
                 // below is never starting a length nothing on screen names.
                 let custom = !model.settings.studyPresets.contains(model.settings.studyMinutes)
-                studyChip(
-                    custom ? BreakRules.studyLengthText(model.settings.studyMinutes) : "Custom",
-                    selected: custom
+                ChoiceChip(
+                    title: custom ? BreakRules.studyLengthText(model.settings.studyMinutes) : "Custom",
+                    selected: custom,
+                    opensMore: true
                 ) {
                     isPickingCustomStudy = true
                 }
             }
+            .padding(.top, 20)
             .sheet(isPresented: $isPickingCustomStudy) {
                 StudyTimerSheet(startingAt: model.settings.studyMinutes).environmentObject(model)
             }
 
-            Button {
+            Button("Start \(BreakRules.studyLengthText(model.settings.studyMinutes)) session") {
                 model.startStudy(minutes: model.settings.studyMinutes)
-            } label: {
-                Text("Start \(BreakRules.studyLengthText(model.settings.studyMinutes)) session")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        model.canStartStudy ? AnyShapeStyle(Theme.gradient) : AnyShapeStyle(Color.white.opacity(0.07)),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
-                    .foregroundColor(model.canStartStudy ? .white : Theme.faint)
             }
+            .buttonStyle(PillButtonStyle(kind: .secondary))
             .disabled(!model.canStartStudy)
+            .padding(.top, 16)
         }
-    }
-
-    private func studyChip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 9)
-                .background(
-                    selected ? Theme.accent.opacity(0.28) : Color.white.opacity(0.06),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                )
-                .foregroundColor(selected ? .white : Theme.muted)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .padding(.top, 48)
     }
 
     /// Says what a session does before it is started — that it turns breaks off
     /// is the whole point, and the one thing nobody should discover afterwards.
     private var studySubtitle: String {
         if !model.state.blockingEnabled || model.blockedCount == 0 {
-            return "Turn blocking on to start one"
+            return "Turn blocking on to start one."
         }
         if model.isOnBreak {
-            return "Starts once your break is over"
+            return "Starts once your break is over."
         }
-        return "Breaks are off until it ends"
+        return "Breaks stay off until it ends."
     }
 
     private var studyHero: some View {
-        VStack(spacing: 14) {
-            HStack {
-                Text("Studying")
-                    .font(Theme.display(15, .medium))
-                Spacer()
-                if let end = model.state.studyEndsAt {
-                    Pill(text: "Ends \(end.formatted(date: .omitted, time: .shortened))")
-                }
+        hero(
+            title: "Studying",
+            meta: model.state.studyEndsAt.map { "Ends \($0.formatted(date: .omitted, time: .shortened))" }
+        ) {
+            HeroRing(fraction: model.studyProgress) {
+                ringFigure(model.studyCountdownText, caption: "breaks are off")
             }
-
-            BreakRing(fraction: model.studyProgress, onGradient: true) {
-                VStack(spacing: 5) {
-                    Text(model.studyCountdownText)
-                        .font(Theme.display(model.studyCountdownText.count > 5 ? 26 : 31, .ultraLight))
-                        .monospacedDigit()
-                    Text("BREAKS ARE OFF")
-                        .font(.system(size: 9.5, weight: .semibold))
-                        .kerning(0.4)
-                        .foregroundColor(.white.opacity(0.7))
-                }
-            }
-
+        } actions: {
             // Always a way out, never a free one: it asks first, and says what it
             // costs before the tap that pays it.
-            Button {
-                confirmingEndStudy = true
-            } label: {
-                Text("End session early")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        Color.white.opacity(0.16),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
-                    .foregroundColor(.white.opacity(0.85))
-            }
-            .confirmationDialog(
-                endStudyTitle,
-                isPresented: $confirmingEndStudy,
-                titleVisibility: .visible
-            ) {
-                Button(model.streakDays > 0 ? "End session and lose streak" : "End session",
-                       role: .destructive) { model.endStudyEarly() }
-                Button("Keep studying", role: .cancel) {}
-            } message: {
-                Text(endStudyMessage)
-            }
+            Button("End session early") { confirmingEndStudy = true }
+                .buttonStyle(PillButtonStyle(kind: .secondary))
+                .confirmationDialog(
+                    endStudyTitle,
+                    isPresented: $confirmingEndStudy,
+                    titleVisibility: .visible
+                ) {
+                    Button(model.streakDays > 0 ? "End session and lose streak" : "End session",
+                           role: .destructive) { model.endStudyEarly() }
+                    Button("Keep studying", role: .cancel) {}
+                } message: {
+                    Text(endStudyMessage)
+                }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Theme.gradient)
-                .shadow(color: Theme.accent.opacity(0.32), radius: 17, y: 8)
-        )
     }
 
     private var endStudyTitle: String {
@@ -505,59 +480,15 @@ struct HomeView: View {
         return message + ". Blocking stays on."
     }
 
-    // MARK: - Budget rows
-
-    private var budgetRows: some View {
-        VStack(spacing: 0) {
-            // A second route into settings, right next to the numbers it changes —
-            // the gear alone makes you go looking for it.
-            NavigationLink {
-                SettingsView()
-            } label: {
-                valueRow("Each break lasts", "\(model.settings.breakMinutes) min", chevron: true)
-            }
-            .buttonStyle(.plain)
-
-            Divider().overlay(Theme.hairline)
-            valueRow("Breaks per day", "\(model.settings.breaksPerDay)")
-
-            Divider().overlay(Theme.hairline)
-            valueRow("Wait between breaks", "\(model.settings.cooldownMinutes) min")
-        }
-        .padding(.horizontal, 16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-
-    private func valueRow(_ title: String, _ value: String, chevron showChevron: Bool = false) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.system(size: 13.5))
-                .foregroundColor(Theme.muted)
-            Spacer()
-            Text(value)
-                .font(.system(size: 14, weight: .semibold))
-                .monospacedDigit()
-            if showChevron { chevron }
-        }
-        .padding(.vertical, 11)
-        .contentShape(Rectangle())
-    }
-
-    private var chevron: some View {
-        Image(systemName: "chevron.right")
-            .font(.system(size: 11, weight: .bold))
-            .foregroundColor(Theme.faint)
-    }
-
     // MARK: - Footer
 
     private var footnote: some View {
         Text("Breaks reset at midnight. You can start one straight from the block screen without opening ScreenSense. What's blocked, and whether blocking is on at all, live in Settings.")
-            .font(.system(size: 11))
+            .font(.system(size: 12))
+            .lineSpacing(2)
             .foregroundColor(Theme.faint)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 6)
-            .padding(.top, 4)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 48)
     }
 
     /// Which build is actually on the phone.
@@ -572,7 +503,8 @@ struct HomeView: View {
         let build = info?["CFBundleVersion"] as? String ?? "?"
 
         return Text("v\(version) (\(build))")
-            .font(.system(size: 10).monospacedDigit())
-            .foregroundColor(Theme.faint)
+            .font(.system(size: 12).monospacedDigit())
+            .foregroundColor(Theme.faint.opacity(0.7))
+            .padding(.top, 12)
     }
 }

@@ -16,41 +16,49 @@ struct BaselineSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 0) {
                     preamble
 
-                    VStack(spacing: 9) {
+                    RuledList {
                         ForEach(ScreenTimeBand.allCases, id: \.rawValue) { band in
                             option(band)
                         }
                     }
-
+                    .padding(.top, 32)
                 }
-                .padding(17)
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
             }
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Where you started")
-            .navigationBarTitleDisplayMode(.inline)
+            .pushedScreen("Where you started")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Not now") { dismiss() }
                         .foregroundColor(Theme.muted)
                 }
             }
         }
-        .tint(Theme.accentSoft)
+        .foregroundColor(Theme.foreground)
+        .tint(Theme.muted)
     }
 
     private var preamble: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
+            // In the page rather than the bar, where iOS 26 squeezes a
+            // leading title into a button-sized bubble.
+            SectionLabel("Where you started")
+                .padding(.bottom, -4)
             Text("How long do you usually spend on these specific apps per day?")
-                .font(Theme.display(19, .medium))
+                .font(Theme.display(30))
+                .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
 
             // Says what the answer is *for*. Without this it reads as data
             // collection, which is the one thing this app must never look like.
             Text("The flame measures how far you have come down from your own starting point.")
-                .font(.system(size: 12.5))
+                .font(.system(size: 15))
+                .lineSpacing(3)
                 .foregroundColor(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -63,27 +71,33 @@ struct BaselineSheet: View {
             model.chooseBaseline(band)
             dismiss()
         } label: {
-            HStack(spacing: 11) {
+            HStack(spacing: 12) {
                 // The answers say what they are. Anything written underneath
                 // them was commentary on the user's habits, which is not this
                 // screen's business and reads as a judgement while they are
                 // still deciding which one is true.
                 Text(band.title)
-                    .font(Theme.display(16, .medium))
-                    .foregroundColor(.white)
+                    .font(.system(size: 17))
+                    .foregroundColor(chosen ? Theme.foreground : Theme.muted)
                 Spacer(minLength: 0)
-                Image(systemName: chosen ? "checkmark.circle.fill" : "chevron.right")
-                    .font(.system(size: chosen ? 17 : 12, weight: .semibold))
-                    .foregroundColor(chosen ? Theme.accentSoft : Theme.faint)
+                ZStack {
+                    Circle()
+                        .fill(chosen ? Theme.foreground : Color.clear)
+                    Circle()
+                        .strokeBorder(chosen ? Theme.foreground : Theme.hairline, lineWidth: 1)
+                    if chosen {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Theme.background)
+                    }
+                }
+                .frame(width: 22, height: 22)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(chosen ? Theme.accentSoft.opacity(0.5) : Theme.hairline, lineWidth: 1)
-            )
+            .frame(height: 60)
+            .contentShape(Rectangle())
+            .overlay(alignment: .bottom) { Rule() }
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 }

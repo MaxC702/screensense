@@ -7,19 +7,24 @@
 // Renders straight to PNG with CoreGraphics so the icon is reproducible and
 // tweakable in source control rather than being an opaque binary blob.
 //
-// The mark: a shield (the app blocks things) with three holes punched through
-// it (the three daily breaks), echoing the pip row in HomeView.
+// The mark: the name itself, "Screen" over "Sense", set bold and flush left in
+// the bottom corner of a black field, with the streak's ember as the full stop.
+// The words read at home-screen size where a thin serif would not, and the one
+// spot of colour is the same one the app keeps for the streak.
 
+import AppKit
 import CoreGraphics
+import CoreText
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
 // MARK: - Palette
-// Matches Theme.accent in ScreenSense/Views/RootView.swift.
+// Matches `Theme` in ScreenSense/Views/RootView.swift.
 
-let gradientTop = CGColor(red: 0.42, green: 0.64, blue: 1.00, alpha: 1)
-let gradientBottom = CGColor(red: 0.13, green: 0.25, blue: 0.78, alpha: 1)
+let field = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
+let paper = CGColor(red: 0.925, green: 0.922, blue: 0.902, alpha: 1)   // Theme.foreground
+let ember = CGColor(red: 0.910, green: 0.573, blue: 0.353, alpha: 1)   // Theme.streak
 
 // MARK: - Rendering
 
@@ -40,113 +45,54 @@ func renderIcon(size: Int) -> CGImage {
         bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
     )!
 
-    // Flip to a top-left origin so the geometry below reads like screen coords.
-    ctx.translateBy(x: 0, y: side)
-    ctx.scaleBy(x: 1, y: -1)
-
-    // Everything is expressed against a 1024 design grid, then scaled.
+    // Everything is expressed against a 1024 design grid, then scaled. CoreText
+    // draws with a bottom-left origin, so the context is left unflipped and
+    // design-grid baselines (measured from the top) are converted here instead.
     let s = side / 1024.0
-    func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * s, y: y * s) }
+    func baseline(_ y: CGFloat) -> CGFloat { side - y * s }
 
     ctx.interpolationQuality = .high
     ctx.setAllowsAntialiasing(true)
+    ctx.setShouldSmoothFonts(false)
 
-    // --- Background: full-bleed diagonal gradient. No rounded corners; iOS
-    // --- applies its own mask, and baking one in shows as a dark fringe.
-    let background = CGGradient(
-        colorsSpace: space,
-        colors: [gradientTop, gradientBottom] as CFArray,
-        locations: [0, 1]
-    )!
-    ctx.drawLinearGradient(
-        background,
-        start: p(0, 0),
-        end: p(1024, 1024),
-        options: []
-    )
+    // --- Background: full-bleed black. No rounded corners; iOS applies its
+    // --- own mask, and baking one in shows as a dark fringe.
+    ctx.setFillColor(field)
+    ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
 
-    // --- Soft highlight so the field doesn't read as flat vinyl.
-    let highlight = CGGradient(
-        colorsSpace: space,
-        colors: [
-            CGColor(red: 1, green: 1, blue: 1, alpha: 0.20),
-            CGColor(red: 1, green: 1, blue: 1, alpha: 0.0),
-        ] as CFArray,
-        locations: [0, 1]
-    )!
-    ctx.drawRadialGradient(
-        highlight,
-        startCenter: p(330, 250), startRadius: 0,
-        endCenter: p(330, 250), endRadius: 640 * s,
-        options: []
-    )
-
-    // --- Shield geometry.
+    // --- The words.
     //
-    // Tuning note: with softer corners and a shorter flank, this silhouette
-    // reads as a speech bubble rather than a shield. Long straight flanks and a
-    // tight top radius are what keep it unmistakable.
-    let cx: CGFloat = 512
-    let top: CGFloat = 236
-    let bottom: CGFloat = 812
-    let halfWidth: CGFloat = 250
-    let corner: CGFloat = 38
-    // Where the straight flanks stop and the taper to the point begins.
-    let shoulder = top + (bottom - top) * 0.48
-    let taper = bottom - shoulder
+    // SF Pro Bold, the face the phone itself uses, so the icon sits with the
+    // system rather than bringing a typeface of its own. Tracked in tight, as
+    // display sizes want; at the default spacing the two lines read as loose
+    // words rather than as one block.
+    let fontSize: CGFloat = 214
+    let font = NSFont.systemFont(ofSize: fontSize * s, weight: .bold) as CTFont
+    let tracking: CGFloat = -14
 
-    let shield = CGMutablePath()
-    shield.move(to: p(cx - halfWidth + corner, top))
-    shield.addLine(to: p(cx + halfWidth - corner, top))
-    shield.addQuadCurve(to: p(cx + halfWidth, top + corner), control: p(cx + halfWidth, top))
-    shield.addLine(to: p(cx + halfWidth, shoulder))
-    shield.addCurve(
-        to: p(cx, bottom),
-        control1: p(cx + halfWidth, shoulder + taper * 0.55),
-        control2: p(cx + halfWidth * 0.60, bottom - taper * 0.05)
-    )
-    shield.addCurve(
-        to: p(cx - halfWidth, shoulder),
-        control1: p(cx - halfWidth * 0.60, bottom - taper * 0.05),
-        control2: p(cx - halfWidth, shoulder + taper * 0.55)
-    )
-    shield.addLine(to: p(cx - halfWidth, top + corner))
-    shield.addQuadCurve(to: p(cx - halfWidth + corner, top), control: p(cx - halfWidth, top))
-    shield.closeSubpath()
+    func line(_ runs: [(String, CGColor)]) -> CTLine {
+        let text = NSMutableAttributedString()
+        for (string, colour) in runs {
+            text.append(NSAttributedString(string: string, attributes: [
+                NSAttributedString.Key(kCTFontAttributeName as String): font,
+                NSAttributedString.Key(kCTForegroundColorAttributeName as String): colour,
+                NSAttributedString.Key(kCTKernAttributeName as String): tracking * s,
+            ]))
+        }
+        return CTLineCreateWithAttributedString(text)
+    }
 
-    // --- A single bold bar: the universal "blocked" mark.
-    //
-    // Three pips (one per daily break) were tried here first and had to go —
-    // an ellipsis inside a rounded silhouette reads as a chat bubble, and no
-    // amount of spacing tuning fixed it.
-    //
-    // Sits above the geometric centre so it lands on the *optical* centre once
-    // the taper below is accounted for.
-    let barWidth: CGFloat = 244
-    let barHeight: CGFloat = 62
-    let barY: CGFloat = 504
-    shield.addPath(CGPath(
-        roundedRect: CGRect(
-            x: (cx - barWidth / 2) * s,
-            y: (barY - barHeight / 2) * s,
-            width: barWidth * s,
-            height: barHeight * s
-        ),
-        cornerWidth: barHeight / 2 * s,
-        cornerHeight: barHeight / 2 * s,
-        transform: nil
-    ))
-
-    ctx.setShadow(
-        offset: CGSize(width: 0, height: 14 * s),
-        blur: 40 * s,
-        color: CGColor(red: 0.04, green: 0.09, blue: 0.30, alpha: 0.35)
-    )
-    ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
-    ctx.addPath(shield)
-    // Even-odd turns the pips into holes, so the gradient shows through them
-    // instead of them being flat coloured dots that would need their own colour.
-    ctx.fillPath(using: .evenOdd)
+    // Flush left on a shared margin, sat low so the field above them is the
+    // quiet part of the icon and the words carry its weight.
+    let margin: CGFloat = 120
+    let lines: [(CTLine, CGFloat)] = [
+        (line([("Screen", paper)]), 660),
+        (line([("Sense", paper), (".", ember)]), 860),
+    ]
+    for (text, y) in lines {
+        ctx.textPosition = CGPoint(x: margin * s, y: baseline(y))
+        CTLineDraw(text, ctx)
+    }
 
     return ctx.makeImage()!
 }

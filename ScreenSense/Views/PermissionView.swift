@@ -10,45 +10,43 @@ struct PermissionView: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(alignment: .leading, spacing: 0) {
             Spacer()
 
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 62))
-                .foregroundStyle(Theme.gradient)
+            Image(systemName: "checkmark.shield")
+                .font(.system(size: 22, weight: .light))
+                .frame(width: 52, height: 52)
+                .overlay(Circle().stroke(Theme.hairline, lineWidth: 1))
 
-            VStack(spacing: 10) {
-                Text("ScreenSense needs Screen Time access")
-                    .font(Theme.display(22, .medium))
-                    .multilineTextAlignment(.center)
+            Text("ScreenSense needs Screen Time access")
+                .font(Theme.display(32))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 32)
 
-                Text("iOS handles the blocking itself. ScreenSense never sees which apps you pick — it only receives anonymous handles from the system.")
-                    .font(.subheadline)
-                    .foregroundColor(Theme.muted)
-                    .multilineTextAlignment(.center)
-            }
+            Text("iOS handles the blocking itself. ScreenSense never sees which apps you pick — it only receives anonymous handles from the system.")
+                .font(.system(size: 15))
+                .lineSpacing(3)
+                .foregroundColor(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 16)
 
             Spacer()
 
             if model.authorizationStatus == .denied {
                 Text("Access was denied. Open Settings › Screen Time to allow it, then come back.")
-                    .font(.footnote)
-                    .foregroundColor(.orange)
-                    .multilineTextAlignment(.center)
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.streak)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 16)
             }
 
-            Button {
+            Button("Grant access") {
                 Task { await model.requestAuthorization() }
-            } label: {
-                Text("Grant access")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Theme.gradient, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-                    .shadow(color: Theme.accent.opacity(0.35), radius: 14, y: 6)
             }
-            .foregroundColor(.white)
+            .buttonStyle(PillButtonStyle())
         }
-        .padding(28)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 32)
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
@@ -12,6 +13,23 @@ struct RootView: View {
         case streak
     }
 
+    init() {
+        // The tab bar has no SwiftUI handle for its unselected colour or its
+        // top rule, so it is set once here, before the first one is drawn.
+        let appearance = UITabBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemChromeMaterialDark)
+        appearance.backgroundColor = UIColor(Theme.background).withAlphaComponent(0.9)
+        appearance.shadowColor = UIColor(Theme.hairline)
+        let item = appearance.stackedLayoutAppearance
+        item.normal.iconColor = UIColor(Theme.faint)
+        item.normal.titleTextAttributes = [.foregroundColor: UIColor(Theme.faint)]
+        item.selected.iconColor = UIColor(Theme.foreground)
+        item.selected.titleTextAttributes = [.foregroundColor: UIColor(Theme.foreground)]
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
@@ -23,13 +41,14 @@ struct RootView: View {
                         .tag(Tab.breaks)
 
                     StreakView()
-                        .tabItem { Label("Streak", systemImage: "flame.fill") }
+                        .tabItem { Label("Streak", systemImage: "flame") }
                         .tag(Tab.streak)
                 }
             } else {
                 PermissionView()
             }
         }
+        .foregroundColor(Theme.foreground)
         .alert(
             "Hold on",
             isPresented: Binding(
@@ -43,50 +62,46 @@ struct RootView: View {
 }
 
 /// Small palette so the app and the shield extension read as the same product.
+///
+/// A study desk rather than a dashboard: warm graphite, paper-white ink, and one
+/// ember colour kept back for the streak. Nothing on a screen is coloured unless
+/// it is the streak or it is telling you blocking is on, so the colour that is
+/// there gets read.
 enum Theme {
-    static let background = Color(red: 0.043, green: 0.035, blue: 0.071)
-    static let card = Color(red: 0.090, green: 0.078, blue: 0.122)
-    static let accent = Color(red: 0.486, green: 0.361, blue: 1.0)
-    static let accentEnd = Color(red: 0.290, green: 0.549, blue: 1.0)
-    /// Legible on top of `card`; the accent itself is too dark for small text.
-    static let accentSoft = Color(red: 0.722, green: 0.647, blue: 1.0)
-    static let muted = Color.white.opacity(0.55)
-    static let faint = Color.white.opacity(0.35)
-    static let hairline = Color.white.opacity(0.07)
-    /// The streak's own colour. Warm on purpose: it is a different currency from
-    /// the break budget, and reusing the purple accent would make the two read as
-    /// one meter. System orange goes muddy on this background, so this is a
-    /// lifted amber. Doubles as the Flame rung of `StreakLevel`.
-    static let streak = Color(red: 1.0, green: 0.596, blue: 0.251)
+    static let background = Color(red: 0.059, green: 0.059, blue: 0.055)
+    /// A step up from the background, for the disabled button and anything else
+    /// that has to sit on the page without being part of it.
+    static let surface = Color(red: 0.094, green: 0.094, blue: 0.086)
+    /// The secondary button's fill — visible against the page, quieter than ink.
+    static let raised = Color(red: 0.133, green: 0.133, blue: 0.122)
+    static let hairline = Color(red: 0.165, green: 0.165, blue: 0.153)
+    static let foreground = Color(red: 0.925, green: 0.922, blue: 0.902)
+    static let muted = Color(red: 0.608, green: 0.604, blue: 0.576)
+    static let faint = Color(red: 0.400, green: 0.396, blue: 0.373)
+    /// The streak's own colour, and the only warm thing in the palette, so it is
+    /// a different currency from everything else on screen at a glance. Doubles
+    /// as the Flame rung of `StreakLevel`.
+    static let streak = Color(red: 0.910, green: 0.573, blue: 0.353)
+    /// Blocking is on. Green so it means what a status light means, and muted so
+    /// it does not compete with the streak for being the colour on the screen.
+    static let ok = Color(red: 0.561, green: 0.749, blue: 0.541)
 
-    static let gradient = LinearGradient(
-        colors: [accent, accentEnd],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    /// Display face for the wordmark, headings and the ring's numerals.
+    /// Display face for the wordmark, headings and big numerals.
     ///
-    /// Avenir Next ships with iOS, so this bundles no font files and needs no
-    /// licence. It is geometric and airy where SF Pro is neutral — which is the
-    /// entire reason for using it, since SF is what every other app on the phone
-    /// already looks like. Body text, values and captions stay on SF Pro, where
-    /// legibility at small sizes matters more than character.
-    static func display(_ size: CGFloat, _ weight: DisplayWeight = .regular) -> Font {
-        .custom(weight.postScriptName, size: size)
+    /// New York, the serif that ships with iOS, so this bundles no font files and
+    /// needs no licence. Headings and figures set in it read as a page someone
+    /// wrote rather than as a control panel — which is the entire reason for it,
+    /// since SF is what every other app on the phone already looks like. Body
+    /// text, values and captions stay on SF Pro, where legibility at small sizes
+    /// matters more than character.
+    static func display(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .serif)
     }
 
-    enum DisplayWeight {
-        case ultraLight, regular, medium, demiBold
-
-        var postScriptName: String {
-            switch self {
-            case .ultraLight: return "AvenirNext-UltraLight"
-            case .regular: return "AvenirNext-Regular"
-            case .medium: return "AvenirNext-Medium"
-            case .demiBold: return "AvenirNext-DemiBold"
-            }
-        }
+    /// The big figures — breaks left, a countdown, the streak. Light and
+    /// fixed-width, so a ticking clock does not shuffle sideways every second.
+    static func numeral(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .light, design: .serif).monospacedDigit()
     }
 }
 
@@ -99,22 +114,23 @@ enum Theme {
 extension StreakLevel {
     var tint: Color {
         switch self {
-        case .ember: return Color(red: 0.878, green: 0.353, blue: 0.235)
+        case .ember: return Color(red: 0.851, green: 0.384, blue: 0.290)
         case .flame: return Theme.streak
-        case .blaze: return Color(red: 1.0, green: 0.788, blue: 0.243)
-        case .whiteHeat: return Color(red: 1.0, green: 0.965, blue: 0.878)
-        // Cyan rather than a true blue, which at this size is indistinguishable
-        // from the accent that ends the app's own gradient.
-        case .blueFlame: return Color(red: 0.361, green: 0.871, blue: 1.0)
+        case .blaze: return Color(red: 0.929, green: 0.761, blue: 0.369)
+        case .whiteHeat: return Color(red: 0.961, green: 0.937, blue: 0.867)
+        case .blueFlame: return Color(red: 0.459, green: 0.792, blue: 0.918)
         }
     }
 }
 
-/// The five-rung heat bar, lit up to `level`.
+// MARK: - Streak
+
+/// The five-rung heat bar, lit up to `level`, with each rung named under it.
 ///
 /// Each rung carries its own tint rather than the current level's, so the bar
 /// shows the ladder itself — where this streak sits on it, and what the colour
-/// above it will be.
+/// above it will be. Rungs already climbed past are dimmed, so the eye lands on
+/// the one being held.
 struct StreakLadder: View {
     let level: StreakLevel
     /// What the budget already earns, when that is higher than what is lit.
@@ -123,11 +139,23 @@ struct StreakLadder: View {
     var target: StreakLevel?
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(StreakLevel.allCases, id: \.rawValue) { rung in
-                Capsule()
-                    .fill(fill(for: rung))
-                    .frame(height: 5)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                ForEach(StreakLevel.allCases, id: \.rawValue) { rung in
+                    Capsule()
+                        .fill(fill(for: rung))
+                        .frame(height: 3)
+                }
+            }
+            HStack(spacing: 4) {
+                ForEach(StreakLevel.allCases, id: \.rawValue) { rung in
+                    Text(rung.name)
+                        .font(.system(size: 11))
+                        .foregroundColor(rung == level ? rung.tint : Theme.faint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
         .accessibilityElement(children: .ignore)
@@ -135,9 +163,10 @@ struct StreakLadder: View {
     }
 
     private func fill(for rung: StreakLevel) -> Color {
-        if rung <= level { return rung.tint }
+        if rung == level { return rung.tint }
+        if rung < level { return rung.tint.opacity(0.5) }
         if let target, rung <= target { return rung.tint.opacity(0.22) }
-        return Color.white.opacity(0.10)
+        return Theme.hairline
     }
 
     private var label: String {
@@ -274,23 +303,19 @@ struct BaselineRow: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(Theme.faint)
-                Text(hasChosen
-                     ? "Scaled to \(band.phrase)"
-                     : "Scaled to a guess — say what you were on")
-                    .font(.system(size: 11))
-                    .foregroundColor(Theme.muted)
-                Spacer(minLength: 0)
+        HStack(spacing: 8) {
+            (Text("Starting point ").foregroundColor(Theme.muted)
+             + Text(hasChosen ? band.phrase : "a guess so far").foregroundColor(Theme.foreground))
+                .font(.system(size: 14))
+            Spacer(minLength: 0)
+            Button(action: action) {
                 Text(hasChosen ? "Change" : "Answer")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Theme.accentSoft)
+                    .font(.system(size: 14, weight: .medium))
+                    .underline(color: Theme.faint)
+                    .foregroundColor(Theme.foreground)
             }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -331,107 +356,237 @@ struct LevelBattery: View {
     }
 }
 
-/// Reusable rounded container.
-struct Card<Content: View>: View {
-    @ViewBuilder var content: Content
+// MARK: - Page
+
+/// The large serif heading every screen opens with, in place of a navigation
+/// bar title. The bar above it keeps only its back button.
+struct ScreenTitle: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        Text(text)
+            .font(Theme.display(34))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
+            .padding(.bottom, 24)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// Groups cards under a quiet all-caps heading, so the screen reads as two
-/// subjects — what is blocked, and what it costs to get in — rather than as one
-/// undifferentiated stack.
+/// Groups rows under a quiet heading, so a screen reads as a few subjects —
+/// what is blocked, and what it costs to get in — rather than as one
+/// undifferentiated list.
 struct SectionLabel: View {
     let text: String
 
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text.uppercased())
-            .font(.system(size: 10, weight: .bold))
-            .kerning(1.2)
+        Text(text)
+            .font(.system(size: 13, weight: .medium))
             .foregroundColor(Theme.faint)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
-            .padding(.top, 6)
+            .padding(.bottom, 8)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// Tinted rounded square holding a symbol. Gives each card a fixed anchor on the
-/// left so headers line up down the screen.
-struct IconTile: View {
-    let symbol: String
-
+/// A hairline, the page's only divider. Sections are separated by rules and
+/// space rather than by being boxed, so nothing on screen looks like a card
+/// that might be tapped when it is only a heading.
+struct Rule: View {
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(Theme.accentSoft)
-            .frame(width: 34, height: 34)
-            .background(
-                Theme.accent.opacity(0.16),
-                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
-            )
+        Rectangle()
+            .fill(Theme.hairline)
+            .frame(height: 1)
     }
 }
 
-/// Small capsule for a value that belongs to a card's header rather than its body.
-struct Pill: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 10.5, weight: .bold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Color.white.opacity(0.14), in: Capsule())
-    }
-}
-
-/// The break budget as an arc.
-///
-/// It replaces a row of dots, which stopped being countable past four and could
-/// not also express a countdown. The same ring shows breaks remaining when idle
-/// and time remaining during a break, so the eye returns to one place.
-struct BreakRing<Content: View>: View {
-    let fraction: Double
-    /// On the gradient card the arc is drawn white; on a flat card it carries
-    /// the gradient itself, which would be invisible against its own background.
-    let onGradient: Bool
+/// A stack of rows with a rule above the first and under every one — a ledger
+/// rather than a set of cards.
+struct RuledList<Content: View>: View {
     @ViewBuilder var content: Content
 
-    private let lineWidth: CGFloat = 10
+    var body: some View {
+        VStack(spacing: 0) {
+            Rule()
+            content
+        }
+    }
+}
+
+extension View {
+    /// A pushed screen's bar: its back button and nothing else, because the
+    /// screen's own `ScreenTitle` is the heading. The title is still set, so the
+    /// back button on the screen after this one is labelled with it.
+    func pushedScreen(_ title: String) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .principal) { Text("") } }
+            .toolbarBackground(Theme.background, for: .navigationBar)
+    }
+
+    /// One row of a `RuledList`: its vertical padding and the rule beneath it.
+    func ruledRow(padding: CGFloat = 16) -> some View {
+        frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, padding)
+            .overlay(alignment: .bottom) { Rule() }
+    }
+}
+
+// MARK: - Controls
+
+/// The full-width capsule every action on a screen uses.
+///
+/// Primary is ink on paper, for the one thing a screen is there to do. Secondary
+/// is quieter, for the ways out — ending a break, ending a session — which
+/// should be easy to find and not look like the point. Disabled goes flat into
+/// the page, because the label it carries is still a readout worth reading.
+struct PillButtonStyle: ButtonStyle {
+    enum Kind { case primary, secondary }
+
+    var kind: Kind = .primary
+
+    func makeBody(configuration: Configuration) -> some View {
+        Pill(configuration: configuration, kind: kind)
+    }
+
+    private struct Pill: View {
+        let configuration: Configuration
+        let kind: Kind
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 15, weight: .medium))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(fill, in: Capsule())
+                .foregroundColor(text)
+                .scaleEffect(configuration.isPressed && isEnabled ? 0.98 : 1)
+                .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+        }
+
+        private var fill: Color {
+            guard isEnabled else { return Theme.surface }
+            return kind == .primary ? Theme.foreground : Theme.raised
+        }
+
+        private var text: Color {
+            guard isEnabled else { return Theme.faint }
+            return kind == .primary ? Theme.background : Theme.foreground
+        }
+    }
+}
+
+/// One of a row of mutually exclusive capsules — a study length, a number of
+/// breaks. The chosen one is filled, so the row reads as a setting with a value
+/// rather than as a row of buttons waiting to be pressed.
+struct ChoiceChip: View {
+    let title: String
+    let selected: Bool
+    /// Drawn with a dashed edge, for the chip that opens something rather than
+    /// picking a value.
+    var opensMore = false
+    var height: CGFloat = 38
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.horizontal, 6)
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+                .foregroundColor(selected ? Theme.background : Theme.muted)
+                .background(selected ? Theme.foreground : Color.clear, in: Capsule())
+                .overlay(
+                    Capsule().strokeBorder(
+                        selected ? Theme.foreground : Theme.hairline,
+                        style: StrokeStyle(lineWidth: 1, dash: opensMore && !selected ? [3, 3] : [])
+                    )
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// A switch drawn in the page's own ink: paper track and a dark knob when on, a
+/// raised track and a grey knob when off. The system switch only takes a track
+/// colour, and a paper-white track under its white knob makes the knob vanish.
+struct InkToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Switch(configuration: configuration)
+    }
+
+    private struct Switch: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            HStack(spacing: 16) {
+                configuration.label
+                Spacer(minLength: 0)
+                Capsule()
+                    .fill(configuration.isOn ? Theme.foreground : Theme.raised)
+                    .frame(width: 46, height: 28)
+                    .overlay(alignment: configuration.isOn ? .trailing : .leading) {
+                        Circle()
+                            .fill(configuration.isOn ? Theme.background : Theme.muted)
+                            .frame(width: 22, height: 22)
+                            .padding(3)
+                    }
+                    .animation(.easeOut(duration: 0.2), value: configuration.isOn)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { if isEnabled { configuration.isOn.toggle() } }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityValue(configuration.isOn ? "On" : "Off")
+            .accessibilityAction { if isEnabled { configuration.isOn.toggle() } }
+        }
+    }
+}
+
+// MARK: - Ring
+
+/// The one number a screen is about, inside a thin ring.
+///
+/// It replaces a row of dots, which stopped being countable past four and could
+/// not also express a countdown. The same ring shows breaks remaining when idle,
+/// time remaining during a break, and a session's clock while studying, so the
+/// eye returns to one place.
+struct HeroRing<Content: View>: View {
+    let fraction: Double
+    var size: CGFloat = 216
+    @ViewBuilder var content: Content
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(
-                    Color.white.opacity(onGradient ? 0.25 : 0.08),
-                    lineWidth: lineWidth
-                )
+                .stroke(Theme.hairline, lineWidth: 2)
 
-            arc
+            if fraction > 0 {
+                Circle()
+                    .trim(from: 0, to: min(max(fraction, 0), 1))
+                    .stroke(Theme.foreground, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
 
             content
         }
-        .frame(width: 134, height: 134)
-    }
-
-    @ViewBuilder
-    private var arc: some View {
-        let trimmed = Circle().trim(from: 0, to: min(max(fraction, 0), 1))
-        let style = StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-
-        if onGradient {
-            trimmed.stroke(Color.white, style: style).rotationEffect(.degrees(-90))
-        } else {
-            trimmed.stroke(Theme.gradient, style: style).rotationEffect(.degrees(-90))
-        }
+        .padding(1.5)
+        .frame(width: size, height: size)
+        .frame(maxWidth: .infinity)
     }
 }

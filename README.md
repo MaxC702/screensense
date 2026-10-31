@@ -243,8 +243,8 @@ swift Tools/make-icon.swift
 ```
 
 That writes `ScreenSense/Assets.xcassets/AppIcon.appiconset/AppIcon.png` (1024×1024) plus a
-throwaway 120px preview for checking that the mark still reads at home-screen size. Colours
-track `Theme.accent`, so the icon and the in-app UI can't drift apart.
+throwaway 120px preview for checking that the words still read at home-screen size. Colours
+track `Theme.foreground` and `Theme.streak`, so the icon and the in-app UI can't drift apart.
 
 Two constraints are baked into the renderer and worth keeping if you edit it: the bitmap
 uses `noneSkipLast` so the PNG carries **no alpha channel** (App Store Connect rejects app
