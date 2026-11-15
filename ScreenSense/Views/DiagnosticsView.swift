@@ -8,6 +8,7 @@ import SwiftUI
 /// happen when it was supposed to".
 struct DiagnosticsView: View {
     @State private var entries: [BreakLog.Entry] = []
+    @AppStorage(OnboardingKeys.completed) private var onboarded = true
 
     var body: some View {
         ScrollView {
@@ -35,6 +36,11 @@ struct DiagnosticsView: View {
                 }
                 .buttonStyle(PillButtonStyle(kind: .secondary))
                 .padding(.top, 24)
+
+                // Answers are kept, so a replay starts from what was picked.
+                Button("Replay onboarding") { onboarded = false }
+                    .buttonStyle(PillButtonStyle(kind: .secondary))
+                    .padding(.top, 8)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
