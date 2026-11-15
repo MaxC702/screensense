@@ -4,6 +4,7 @@ import UIKit
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @State private var tab: Tab = .breaks
+    @AppStorage(OnboardingKeys.completed) private var onboarded = false
 
     /// Two tabs, not three. Settings stays behind the gear on the home screen,
     /// because it holds the switch that turns blocking off — and putting that a
@@ -34,7 +35,12 @@ struct RootView: View {
         ZStack {
             Theme.background.ignoresSafeArea()
 
-            if model.isAuthorized {
+            if !onboarded {
+                OnboardingView {
+                    withAnimation(.easeInOut(duration: 0.4)) { onboarded = true }
+                }
+                .transition(.opacity)
+            } else if model.isAuthorized {
                 TabView(selection: $tab) {
                     HomeView(onShowStreak: { tab = .streak })
                         .tabItem { Label("Breaks", systemImage: "hourglass") }
