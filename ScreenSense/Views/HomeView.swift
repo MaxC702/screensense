@@ -61,14 +61,6 @@ struct HomeView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 20)
                 .accessibilityAddTraits(.isHeader)
-
-            if let summary {
-                Text(summary)
-                    .font(.system(size: 15))
-                    .foregroundColor(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 6)
-            }
         }
     }
 
@@ -83,31 +75,6 @@ struct HomeView: View {
         }
         let first = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return first.isEmpty ? part : "\(part), \(first)"
-    }
-
-    /// One plain sentence about where the day stands. Nothing while setup is
-    /// unfinished: the row under the header is already saying what to do.
-    private var summary: String? {
-        let state = model.state
-        if model.isStudying, let end = state.studyEndsAt {
-            return "You're studying until \(clockTime(end))."
-        }
-        if model.isOnBreak, let end = state.breakEndsAt {
-            return "You're on a break. Blocking comes back at \(clockTime(end))."
-        }
-        if needsSetup { return nil }
-
-        let left = model.breaksRemaining
-        if left == 0 { return "You've used all your breaks today." }
-        let breaks = left == 1 ? "1 break" : "\(left) breaks"
-        if model.isCoolingDown, let next = state.cooldownUntil {
-            return "You have \(breaks) left. The next one opens at \(clockTime(next))."
-        }
-        return "You have \(breaks) left today."
-    }
-
-    private func clockTime(_ date: Date) -> String {
-        date.formatted(date: .omitted, time: .shortened)
     }
 
     private var topBar: some View {
