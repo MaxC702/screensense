@@ -10,7 +10,6 @@ struct HomeView: View {
 
     @State private var confirmingEndStudy = false
     @State private var isPickingCustomStudy = false
-    @AppStorage(OnboardingKeys.name) private var name = ""
 
     var body: some View {
         NavigationStack {
@@ -74,8 +73,8 @@ struct HomeView: View {
         case 12..<17: part = "Good afternoon"
         default: part = "Good evening"
         }
-        let first = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return first.isEmpty ? part : "\(part), \(first)"
+        guard let name = model.profile.firstName else { return part }
+        return "\(part), \(name)"
     }
 
     private var topBar: some View {

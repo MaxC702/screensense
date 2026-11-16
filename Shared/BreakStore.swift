@@ -26,6 +26,7 @@ enum BreakStore {
     private static let stateFile = "state.v1.json"
     private static let selectionFile = "selection.v1.json"
     private static let settingsFile = "settings.v1.json"
+    private static let profileFile = "profile.v1.json"
 
     // MARK: - Settings
 
@@ -35,6 +36,22 @@ enum BreakStore {
 
     static func saveSettings(_ settings: BreakSettings) {
         write(settings, file: settingsFile)
+    }
+
+    // MARK: - Profile
+
+    /// `nil` when nothing has been saved yet, so the app can tell "never
+    /// written" apart from an empty profile and migrate older answers once.
+    static func loadProfileIfSaved() -> UserProfile? {
+        load(UserProfile.self, file: profileFile, legacyKey: nil)
+    }
+
+    static func loadProfile() -> UserProfile {
+        loadProfileIfSaved() ?? UserProfile()
+    }
+
+    static func saveProfile(_ profile: UserProfile) {
+        write(profile, file: profileFile)
     }
 
     // MARK: - Break state
@@ -97,13 +114,14 @@ enum BreakStore {
     /// no file, decodes the old defaults payload, and the next write puts it on
     /// disk where every later read will find it. Nothing is deleted, so a build
     /// that failed to write its file reads the old value rather than a default.
-    private static func load<T: Decodable>(_ type: T.Type, file: String, legacyKey: String) -> T? {
+    private static func load<T: Decodable>(_ type: T.Type, file: String, legacyKey: String?) -> T? {
         if let url = url(for: file),
            let data = try? Data(contentsOf: url),
            let value = try? JSONDecoder().decode(type, from: data) {
             return value
         }
-        if let data = UserDefaults.shared.freshData(forKey: legacyKey),
+        if let legacyKey,
+           let data = UserDefaults.shared.freshData(forKey: legacyKey),
            let value = try? JSONDecoder().decode(type, from: data) {
             // Migrate on the spot rather than waiting for something to save.
             // Plenty of reads never write, and until the file exists every one of

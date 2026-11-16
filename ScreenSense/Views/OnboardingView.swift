@@ -12,11 +12,6 @@ struct OnboardingView: View {
     @EnvironmentObject private var model: AppModel
     let onFinish: () -> Void
 
-    @AppStorage(OnboardingKeys.name) private var name = ""
-    @AppStorage(OnboardingKeys.reasons) private var reasonsRaw = ""
-    @AppStorage(OnboardingKeys.role) private var role = ""
-    @AppStorage(OnboardingKeys.activities) private var activitiesRaw = ""
-
     @State private var step: Step = .welcome
     @State private var forward = true
     @State private var band: ScreenTimeBand?
@@ -40,7 +35,11 @@ struct OnboardingView: View {
         }
     }
 
-    private var firstName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var firstName: String { model.profile.firstName ?? "" }
+
+    private var nameBinding: Binding<String> {
+        Binding(get: { model.profile.name }, set: { value in model.updateProfile { $0.name = value } })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -225,7 +224,7 @@ struct OnboardingView: View {
                 Text("First name")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(Theme.muted)
-                TextField("", text: $name, prompt: Text("Your first name").foregroundColor(Theme.faint))
+                TextField("", text: nameBinding, prompt: Text("Your first name").foregroundColor(Theme.faint))
                     .font(Theme.display(30))
                     .textContentType(.givenName)
                     .textInputAutocapitalization(.words)
@@ -246,42 +245,21 @@ struct OnboardingView: View {
         }
     }
 
-    private static let reasons: [(String, String)] = [
-        ("focus", "Focus on school or work"),
-        ("sleep", "Sleep better"),
-        ("present", "Be present with people"),
-        ("scroll", "Stop doomscrolling"),
-        ("mood", "Stop feeling bad after using my phone"),
-        ("hobby", "Get back to a hobby"),
-        ("other", "Other"),
-    ]
-
     private var whyPage: some View {
         QuestionPage(eyebrow: "Your reasons", title: "Why did you get ScreenSense?") {
-            VStack(spacing: 0) {
-                Rule()
-                ForEach(Array(Self.reasons.enumerated()), id: \.element.0) { index, reason in
-                    OptionRow(
-                        title: reason.1,
-                        selected: contains(reasonsRaw, reason.0),
-                        shape: .square,
-                        height: 56
-                    ) { reasonsRaw = toggled(reasonsRaw, reason.0) }
-                    .rise(0.24 + Double(index) * 0.055)
-                }
-            }
-            .padding(.top, 28)
+            ReasonList(staggered: true)
+                .padding(.top, 28)
         } footer: {
             Button("Continue") { go(to: .about) }
                 .buttonStyle(PillButtonStyle())
         }
     }
 
-    private static let roles: [(String, String, String)] = [
-        ("school", "In high school", "Study sessions up front, tagged by class"),
-        ("college", "In college or university", "Study sessions up front, tagged by class"),
-        ("work", "Working", "Focus blocks for the workday"),
-        ("other", "Something else", "The plain version, nothing assumed"),
+    private static let roles: [(UserProfile.Role, String, String)] = [
+        (.school, "In high school", "Study sessions up front, tagged by class"),
+        (.college, "In college or university", "Study sessions up front, tagged by class"),
+        (.work, "Working", "Focus blocks for the workday"),
+        (.other, "Something else", "The plain version, nothing assumed"),
     ]
 
     private var aboutPage: some View {
@@ -296,10 +274,10 @@ struct OnboardingView: View {
                     OptionRow(
                         title: item.1,
                         subtitle: item.2,
-                        selected: role == item.0,
+                        selected: model.profile.role == item.0,
                         shape: .circle,
                         height: 72
-                    ) { role = item.0 }
+                    ) { model.updateProfile { $0.role = item.0 } }
                     .rise(0.29 + Double(index) * 0.06)
                 }
             }
@@ -360,12 +338,12 @@ struct OnboardingView: View {
                     ForEach(Array(Self.activities.enumerated()), id: \.element.0) { index, item in
                         ChoiceChip(
                             title: item.1,
-                            selected: contains(activitiesRaw, item.0),
+                            selected: model.profile.activities.contains(item.0),
                             opensMore: item.0 == "other",
                             height: 44
                         ) {
                             withAnimation(.easeOut(duration: 0.2)) {
-                                activitiesRaw = toggled(activitiesRaw, item.0)
+                                model.updateProfile { $0.activities.toggle(item.0) }
                             }
                         }
                         .pop(0.2 + Double(index) * 0.055)
@@ -451,30 +429,85 @@ struct OnboardingView: View {
         .font(.system(size: 16))
         .ruledRow(padding: 14)
     }
+}
 
-    // MARK: - Stored multi-select
+/// The app's own defaults keys for onboarding. Only `completed` is still
+/// written; the answers themselves live in `UserProfile`, in the App Group, and
+/// the rest are read once to move an earlier build's answers across.
+enum OnboardingKeys {
+    static let completed = "onboarding.completed"
+    static let legacyName = "onboarding.name"
+    static let legacyReasons = "onboarding.reasons"
+    static let legacyRole = "onboarding.role"
+    static let legacyActivities = "onboarding.activities"
+}
 
-    /// Multi-select answers are kept as comma-joined ids so they fit in
-    /// `@AppStorage` without a Codable wrapper.
-    private func contains(_ raw: String, _ id: String) -> Bool {
-        raw.split(separator: ",").contains { $0 == id }
-    }
-
-    private func toggled(_ raw: String, _ id: String) -> String {
-        var ids = raw.split(separator: ",").map(String.init)
-        if let index = ids.firstIndex(of: id) { ids.remove(at: index) } else { ids.append(id) }
-        return ids.joined(separator: ",")
+extension Array where Element: Equatable {
+    /// Adds the element if it is missing, removes it if it is there.
+    mutating func toggle(_ element: Element) {
+        if let index = firstIndex(of: element) { remove(at: index) } else { append(element) }
     }
 }
 
-/// UserDefaults keys for the onboarding answers. App-only: none of these are
-/// read by the extensions, so they stay out of the App Group.
-enum OnboardingKeys {
-    static let completed = "onboarding.completed"
-    static let name = "onboarding.name"
-    static let reasons = "onboarding.reasons"
-    static let role = "onboarding.role"
-    static let activities = "onboarding.activities"
+// MARK: - Reasons
+
+/// The "why did you get ScreenSense" list, shared by onboarding and Settings.
+/// Ticking Other opens a line under it for their own words.
+struct ReasonList: View {
+    @EnvironmentObject private var model: AppModel
+    /// Onboarding brings the rows in one after another; Settings does not.
+    var staggered = false
+    @FocusState private var typing: Bool
+
+    private var otherBinding: Binding<String> {
+        Binding(
+            get: { model.profile.otherReason },
+            set: { value in model.updateProfile { $0.otherReason = value } }
+        )
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Rule()
+            ForEach(Array(UserProfile.Reason.allCases.enumerated()), id: \.element) { index, reason in
+                OptionRow(
+                    title: reason.title,
+                    selected: model.profile.reasons.contains(reason),
+                    shape: .square,
+                    height: 56
+                ) {
+                    model.updateProfile { $0.reasons.toggle(reason) }
+                    if reason == .other { typing = model.profile.reasons.contains(.other) }
+                }
+                .modifier(Rise(delay: staggered ? 0.24 + Double(index) * 0.055 : 0, enabled: staggered))
+
+                if reason == .other, model.profile.reasons.contains(.other) {
+                    otherField
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+    }
+
+    private var otherField: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            TextField("", text: otherBinding, prompt: Text("What's your reason?").foregroundColor(Theme.faint))
+                .font(.system(size: 17))
+                .focused($typing)
+                .submitLabel(.done)
+                .onSubmit { typing = false }
+                .frame(height: 44)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(typing ? Theme.foreground : Theme.hairline).frame(height: 1)
+                }
+            Text("\(model.profile.otherReason.count)/\(UserProfile.otherReasonLimit)")
+                .font(.system(size: 11))
+                .monospacedDigit()
+                .foregroundColor(Theme.faint)
+        }
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) { Rule() }
+    }
 }
 
 // MARK: - Question page
@@ -538,7 +571,7 @@ private struct QuestionPage<Content: View, Footer: View>: View {
 
 /// One answer in a ruled list, with a tick box (multi-select) or a radio
 /// (single). Colours ease between states rather than snapping.
-private struct OptionRow: View {
+struct OptionRow: View {
     enum Shape { case square, circle }
 
     let title: String
@@ -842,13 +875,19 @@ private struct HoldToCommitButton: View {
 
 /// Fades a piece of a page in and lifts it into place, after `delay` seconds,
 /// so a page arrives top to bottom rather than all at once.
-private struct Rise: ViewModifier {
+struct Rise: ViewModifier {
     let delay: Double
     var scale = false
+    /// Off shows the content straight away, for lists reused outside onboarding.
+    var enabled = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
     func body(content: Content) -> some View {
+        if enabled { animated(content) } else { content }
+    }
+
+    private func animated(_ content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
             .offset(y: shown || reduceMotion || scale ? 0 : 16)

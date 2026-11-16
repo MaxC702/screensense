@@ -47,6 +47,9 @@ struct SettingsView: View {
                     cooldownRow
                 }
 
+                SectionLabel("You").padding(.top, 40)
+                RuledList { reasonsRow }
+
                 #if DEBUG
                 SectionLabel("Support").padding(.top, 40)
                 RuledList { diagnosticsLink }
@@ -382,6 +385,24 @@ struct SettingsView: View {
             }
         }
         .ruledRow()
+    }
+
+    // MARK: - You
+
+    private var reasonsRow: some View {
+        NavigationLink {
+            ReasonsView()
+        } label: {
+            HStack(spacing: 16) {
+                rowTitle("Your reasons", model.profile.reasonsSummary)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(Theme.faint)
+            }
+            .contentShape(Rectangle())
+            .ruledRow()
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Pieces
