@@ -10,6 +10,7 @@ struct HomeView: View {
 
     @State private var confirmingEndStudy = false
     @State private var isPickingCustomStudy = false
+    @AppStorage(OnboardingKeys.name) private var name = ""
 
     var body: some View {
         NavigationStack {
@@ -48,18 +49,75 @@ struct HomeView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 4) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("ScreenSense")
-                    .font(Theme.display(30))
+        VStack(alignment: .leading, spacing: 0) {
+            topBar
 
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(model.state.blockingEnabled ? Theme.ok : Theme.faint)
-                        .frame(width: 6, height: 6)
-                    statusLine
-                        .font(.system(size: 13))
-                }
+            // On its own line under the bar rather than beside the badge, so a
+            // long name has the full width and never squeezes the flame.
+            Text(greeting)
+                .font(Theme.display(34))
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 20)
+                .accessibilityAddTraits(.isHeader)
+
+            if let summary {
+                Text(summary)
+                    .font(.system(size: 15))
+                    .foregroundColor(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+            }
+        }
+    }
+
+    /// "Good morning, Max", or without the name if none was given.
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: .now)
+        let part: String
+        switch hour {
+        case 5..<12: part = "Good morning"
+        case 12..<17: part = "Good afternoon"
+        default: part = "Good evening"
+        }
+        let first = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return first.isEmpty ? part : "\(part), \(first)"
+    }
+
+    /// One plain sentence about where the day stands. Nothing while setup is
+    /// unfinished: the row under the header is already saying what to do.
+    private var summary: String? {
+        let state = model.state
+        if model.isStudying, let end = state.studyEndsAt {
+            return "You're studying until \(clockTime(end))."
+        }
+        if model.isOnBreak, let end = state.breakEndsAt {
+            return "You're on a break. Blocking comes back at \(clockTime(end))."
+        }
+        if needsSetup { return nil }
+
+        let left = model.breaksRemaining
+        if left == 0 { return "You've used all your breaks today." }
+        let breaks = left == 1 ? "1 break" : "\(left) breaks"
+        if model.isCoolingDown, let next = state.cooldownUntil {
+            return "You have \(breaks) left. The next one opens at \(clockTime(next))."
+        }
+        return "You have \(breaks) left today."
+    }
+
+    private func clockTime(_ date: Date) -> String {
+        date.formatted(date: .omitted, time: .shortened)
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 4) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(model.state.blockingEnabled ? Theme.ok : Theme.faint)
+                    .frame(width: 6, height: 6)
+                statusLine
+                    .font(.system(size: 13))
             }
             Spacer()
             streakBadge
