@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
 
     @Published private(set) var state: BreakState
     @Published private(set) var settings: BreakSettings
+    @Published private(set) var profile: UserProfile
     @Published private(set) var authorizationStatus: AuthorizationStatus
     @Published var selection: FamilyActivitySelection
     @Published var isPickerPresented = false
@@ -27,8 +28,41 @@ final class AppModel: ObservableObject {
     init() {
         state = BreakStore.loadState()
         settings = BreakStore.loadSettings()
+        profile = BreakStore.loadProfileIfSaved() ?? Self.migrateOnboardingAnswers()
         selection = BreakStore.loadSelection()
         authorizationStatus = AuthorizationCenter.shared.authorizationStatus
+    }
+
+    /// The first onboarding build kept its answers in the app's own defaults,
+    /// where the extensions cannot see them. Moves them into the App Group once
+    /// and clears the old keys.
+    private static func migrateOnboardingAnswers() -> UserProfile {
+        let defaults = UserDefaults.standard
+        let ids = { (key: String) in
+            (defaults.string(forKey: key) ?? "").split(separator: ",").map(String.init)
+        }
+        var profile = UserProfile()
+        profile.name = defaults.string(forKey: OnboardingKeys.legacyName) ?? ""
+        profile.reasons = ids(OnboardingKeys.legacyReasons).compactMap(UserProfile.Reason.init(rawValue:))
+        profile.role = defaults.string(forKey: OnboardingKeys.legacyRole).flatMap(UserProfile.Role.init(rawValue:))
+        profile.activities = ids(OnboardingKeys.legacyActivities)
+        BreakStore.saveProfile(profile)
+        for key in [OnboardingKeys.legacyName, OnboardingKeys.legacyReasons,
+                    OnboardingKeys.legacyRole, OnboardingKeys.legacyActivities] {
+            defaults.removeObject(forKey: key)
+        }
+        return profile
+    }
+
+    /// Writes straight through to the App Group, like settings, so the shield
+    /// extension reads the new answers the next time it draws.
+    func updateProfile(_ body: (inout UserProfile) -> Void) {
+        var updated = profile
+        body(&updated)
+        updated.otherReason = String(updated.otherReason.prefix(UserProfile.otherReasonLimit))
+        guard updated != profile else { return }
+        profile = updated
+        BreakStore.saveProfile(updated)
     }
 
     // MARK: - Derived
@@ -306,6 +340,7 @@ final class AppModel: ObservableObject {
         BreakEngine.reconcile()
         state = BreakStore.loadState()
         settings = BreakStore.loadSettings()
+        profile = BreakStore.loadProfile()
         selection = BreakStore.loadSelection()
         authorizationStatus = AuthorizationCenter.shared.authorizationStatus
         now = .now
