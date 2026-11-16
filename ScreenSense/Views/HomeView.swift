@@ -55,11 +55,12 @@ struct HomeView: View {
             // On its own line under the bar rather than beside the badge, so a
             // long name has the full width and never squeezes the flame.
             Text(greeting)
-                .font(Theme.display(34))
+                .font(Theme.display(40))
+                .lineSpacing(-2)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 20)
+                .padding(.top, 28)
                 .accessibilityAddTraits(.isHeader)
         }
     }
@@ -277,7 +278,9 @@ struct HomeView: View {
             }
             .padding(.top, 40)
         }
-        .padding(.top, 40)
+        // Closer to the greeting than the sections below are to each other,
+        // so the heading reads as belonging to the ring under it.
+        .padding(.top, 28)
     }
 
     private func ringFigure(_ value: String, caption: String) -> some View {
