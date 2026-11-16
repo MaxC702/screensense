@@ -10,6 +10,7 @@ struct HomeView: View {
 
     @State private var confirmingEndStudy = false
     @State private var isPickingCustomStudy = false
+    @AppStorage(OnboardingKeys.name) private var name = ""
 
     var body: some View {
         NavigationStack {
@@ -48,18 +49,43 @@ struct HomeView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 4) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("ScreenSense")
-                    .font(Theme.display(30))
+        VStack(alignment: .leading, spacing: 0) {
+            topBar
 
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(model.state.blockingEnabled ? Theme.ok : Theme.faint)
-                        .frame(width: 6, height: 6)
-                    statusLine
-                        .font(.system(size: 13))
-                }
+            // On its own line under the bar rather than beside the badge, so a
+            // long name has the full width and never squeezes the flame.
+            Text(greeting)
+                .font(Theme.display(40))
+                .lineSpacing(-2)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 28)
+                .accessibilityAddTraits(.isHeader)
+        }
+    }
+
+    /// "Good morning, Max", or without the name if none was given.
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: .now)
+        let part: String
+        switch hour {
+        case 5..<12: part = "Good morning"
+        case 12..<17: part = "Good afternoon"
+        default: part = "Good evening"
+        }
+        let first = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return first.isEmpty ? part : "\(part), \(first)"
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 4) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(model.state.blockingEnabled ? Theme.ok : Theme.faint)
+                    .frame(width: 6, height: 6)
+                statusLine
+                    .font(.system(size: 13))
             }
             Spacer()
             streakBadge
@@ -252,7 +278,9 @@ struct HomeView: View {
             }
             .padding(.top, 40)
         }
-        .padding(.top, 40)
+        // Closer to the greeting than the sections below are to each other,
+        // so the heading reads as belonging to the ring under it.
+        .padding(.top, 28)
     }
 
     private func ringFigure(_ value: String, caption: String) -> some View {
